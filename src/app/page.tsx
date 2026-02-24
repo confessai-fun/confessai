@@ -235,9 +235,9 @@ export default function Home() {
           {/* Hero */}
           <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-32 pb-20 relative">
             <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle,rgba(255,45,45,0.15),transparent_70%)] pointer-events-none opacity-40" />
-            <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
+            {/* <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
               <span className="w-2 h-2 bg-accent rounded-full animate-blink" /> Live on Base
-            </div>
+            </div> */}
             <h1 className="font-display text-[clamp(48px,8vw,96px)] leading-none text-white mb-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
               CONFESS YOUR<br /><span className="text-accent">CRYPTO SINS</span>
             </h1>
