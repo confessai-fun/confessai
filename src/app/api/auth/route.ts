@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Build the same message that was signed on client
-    const message = `Sign in to PumpConfession.ai\n\nNonce: ${nonce}`;
+    const message = `Sign in to confessai.fun\n\nNonce: ${nonce}`;
 
     // Recover signer address from signature
     const recovered = ethers.verifyMessage(message, signature);

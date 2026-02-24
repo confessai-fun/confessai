@@ -5,11 +5,11 @@ import { ToastProvider } from '@/components/Toast';
 import UsernameModal from '@/components/UsernameModal';
 
 export const metadata: Metadata = {
-  title: 'Confessai.fun — Confess Your Crypto Sins',
-  description: 'The anonymous confessional for degens. An AI priest judges your worst trades. $CONFESS on Base.',
+  title: 'Confessai.fun - Confess Your Crypto Sins',
+  description: 'The anonymous confessional for degens. An AI priest judges your worst trades. $CONF on Base.',
   openGraph: {
-    title: 'Confessai.fun — Confess Your Crypto Sins',
-    description: 'An AI priest judges your worst crypto trades. $CONFESS on Base.',
+    title: 'Confessai.fun - Confess Your Crypto Sins',
+    description: 'An AI priest judges your worst crypto trades. $CONF on Base.',
   },
   twitter: { card: 'summary_large_image' },
 };

@@ -9,13 +9,13 @@ import ChatPanel from '@/components/ChatPanel';
 import { useToast } from '@/components/Toast';
 
 const SINS = [
-  { icon: '🤑', name: 'Greed', desc: '"I knew it was a rug but the APY was 40,000%"' },
-  { icon: '😱', name: 'FOMO', desc: '"A guy on Twitter said it\'s going to $1 so I sold my car"' },
-  { icon: '😤', name: 'Wrath', desc: '"I mass reported the dev\'s Twitter after getting rugged"' },
-  { icon: '🦥', name: 'Sloth', desc: '"Too lazy to revoke approvals. Got drained 3 times."' },
-  { icon: '👑', name: 'Pride', desc: '"I told everyone I sold the top. I absolutely did not."' },
-  { icon: '😍', name: 'Lust', desc: '"I bought a token because the dev was attractive"' },
-  { icon: '🧘', name: 'Cope', desc: '"It\'s not a loss if I don\'t sell" — me, down 97%' },
+  { icon: '/greed_icon.png', name: 'Greed', desc: '"I knew it was a rug but the APY was 40,000%"' },
+  { icon: '/fomo_icon.png', name: 'FOMO', desc: '"A guy on Twitter said it\'s going to $1 so I sold my car"' },
+  { icon: '/wrath_icon.png', name: 'Wrath', desc: '"I mass reported the dev\'s Twitter after getting rugged"' },
+  { icon: '/sloth_icon.png', name: 'Sloth', desc: '"Too lazy to revoke approvals. Got drained 3 times."' },
+  { icon: '/pride_icon.png', name: 'Pride', desc: '"I told everyone I sold the top. I absolutely did not."' },
+  { icon: '/lust_icon.png', name: 'Lust', desc: '"I bought a token because the dev was attractive"' },
+  { icon: '/cope_icon.png', name: 'Cope', desc: '"It\'s not a loss if I don\'t sell" - me, down 97%' },
 ];
 
 const STEPS = [
@@ -221,7 +221,7 @@ export default function Home() {
 
   const shareToTwitter = () => {
     if (!salvation) return;
-    const t = `⛪ I confessed my crypto sins at confessai.fun\n\nSin: ${salvation.sinCategory}\nSeverity: ${salvation.sinLevel}\n\nhttps://confessai.fun\n\n$CONFESS`;
+    const t = `⛪ I confessed my crypto sins at confessai.fun\n\nSin: ${salvation.sinCategory}\nSeverity: ${salvation.sinLevel}\n\nhttps://confessai.fun\n\n$CONF`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}`, '_blank');
   };
 
@@ -249,7 +249,7 @@ export default function Home() {
                 ⛪ Enter the Confessional
               </button>
               <a href="#token" className="border border-gray-600 text-gray-300 px-10 py-4 rounded-full font-semibold text-base hover:border-gray-400 hover:text-white hover:-translate-y-0.5 transition-all">
-                Buy $CONFESS
+                Buy $CONF
               </a>
             </div>
           </section>
@@ -276,7 +276,7 @@ export default function Home() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {SINS.map((sin) => (
                   <div key={sin.name} className="bg-card border border-gray-800 rounded-xl p-6 hover:border-accent/30 transition-all group cursor-pointer" onClick={() => { setTab('wall'); }}>
-                    <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{sin.icon}</div>
+                    <img src={sin.icon} className="text-3xl mb-3 group-hover:scale-110 transition-transform" alt={sin.name} />
                     <div className="font-display text-base text-white mb-2">{sin.name}</div>
                     <p className="text-xs text-gray-500">{sin.desc}</p>
                   </div>
@@ -306,7 +306,7 @@ export default function Home() {
           <section id="token" className="py-20 border-t border-gray-800/50">
             <div className="max-w-3xl mx-auto px-6 text-center">
               <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">The Token</div>
-              <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-6">$CONFESS</h2>
+              <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-6">$CONF</h2>
               <p className="text-gray-400 max-w-lg mx-auto mb-10">The currency of sin. Every confession is recorded on Base. Your sins are immutable, your penance is eternal.</p>
               <a href="#" className="inline-flex bg-accent text-white px-10 py-4 rounded-full font-bold text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
                 Buy on Flaunch →
@@ -361,7 +361,7 @@ export default function Home() {
                 <div className="w-11 h-11 bg-accent rounded-full flex items-center justify-center text-xl">⛪</div>
                 <div>
                   <div className="font-display text-base text-white">Father Degen</div>
-                  <div className="text-xs text-gray-500">AI Priest · Church of $CONFESS</div>
+                  <div className="text-xs text-gray-500">AI Priest · Church of $CONF</div>
                 </div>
               </div>
               <div className="flex gap-2 mb-5">
@@ -508,7 +508,7 @@ export default function Home() {
             <a key={l} href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{l}</a>
           ))}
         </div>
-        <p className="text-xs text-gray-600">© 2026 Confessai.fun — All sins recorded on-chain. No salvation guaranteed.</p>
+        <p className="text-xs text-gray-600">© 2026 Confessai.fun - All sins recorded on-chain. No salvation guaranteed.</p>
       </footer>
     </>
   );
