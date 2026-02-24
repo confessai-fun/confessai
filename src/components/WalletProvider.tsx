@@ -87,7 +87,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const nonceRes = await fetch('/api/auth?action=nonce');
       const { nonce } = await nonceRes.json();
 
-      const message = `Sign in to PumpConfession.ai\n\nNonce: ${nonce}`;
+      const message = `Sign in to Confessai.fun\n\nNonce: ${nonce}`;
 
       const signature: string = await window.ethereum.request({
         method: 'personal_sign',

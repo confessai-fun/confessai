@@ -221,7 +221,7 @@ export default function Home() {
 
   const shareToTwitter = () => {
     if (!salvation) return;
-    const t = `⛪ I confessed my crypto sins at PumpConfession.ai\n\nSin: ${salvation.sinCategory}\nSeverity: ${salvation.sinLevel}\n\nhttps://pumpconfession.ai\n\n$CONFESS`;
+    const t = `⛪ I confessed my crypto sins at confessai.fun\n\nSin: ${salvation.sinCategory}\nSeverity: ${salvation.sinLevel}\n\nhttps://confessai.fun\n\n$CONFESS`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}`, '_blank');
   };
 
@@ -508,7 +508,7 @@ export default function Home() {
             <a key={l} href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{l}</a>
           ))}
         </div>
-        <p className="text-xs text-gray-600">© 2026 PumpConfession.ai — All sins recorded on-chain. No salvation guaranteed.</p>
+        <p className="text-xs text-gray-600">© 2026 Confessai.fun — All sins recorded on-chain. No salvation guaranteed.</p>
       </footer>
     </>
   );

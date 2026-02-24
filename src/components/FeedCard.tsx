@@ -75,7 +75,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
   };
 
   const share = () => {
-    const t = `⛪ Someone confessed on @PumpConfession:\n\n"${c.confessionText.slice(0, 100)}..."\n\nVerdict: ${c.sinCategory} — ${c.sinLevel}\n\nhttps://pumpconfession.ai\n\n$CONFESS`;
+    const t = `⛪ Someone confessed on @ConfessaiFun:\n\n"${c.confessionText.slice(0, 100)}..."\n\nVerdict: ${c.sinCategory} — ${c.sinLevel}\n\nhttps://confessai.fun\n\n$CONFESS`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}`, '_blank');
   };
 

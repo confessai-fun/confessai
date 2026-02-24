@@ -30,7 +30,7 @@ export default function Navbar({ activeTab, onTabChange }: NavProps) {
         onClick={() => onTabChange('home')}
       >
         <span className="text-accent text-2xl animate-pulse-glow">✝</span>
-        PumpConfession
+        ConfessAI
       </div>
 
       <div className="flex items-center gap-6">
