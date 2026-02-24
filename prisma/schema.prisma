@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String       @id @default(cuid())
+  walletAddress    String       @unique @map("wallet_address")
+  username         String?
+  sinScore         Int          @default(0) @map("sin_score")
+  totalConfessions Int          @default(0) @map("total_confessions")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  confessions      Confession[]
+  comments         Comment[]
+  likes            Like[]
+  chatMessages     ChatMessage[]
+
+  @@map("users")
+}
+
+model Confession {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  confessionText String    @map("confession_text")
+  sinCategory    String    @map("sin_category")
+  sinLevel       String    @map("sin_level")
+  aiResponse     String    @map("ai_response")
+  penance        String
+  likesCount     Int       @default(0) @map("likes_count")
+  commentsCount  Int       @default(0) @map("comments_count")
+  txHash         String?   @map("tx_hash")
+  onChainId      Int?      @map("on_chain_id")
+  chainStatus    String    @default("pending") @map("chain_status") // pending, confirmed, failed
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments       Comment[]
+  likes          Like[]
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@map("confessions")
+}
+
+model Comment {
+  id           String     @id @default(cuid())
+  confessionId String     @map("confession_id")
+  userId       String     @map("user_id")
+  commentText  String     @map("comment_text")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  confession   Confession @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([confessionId])
+  @@map("comments")
+}
+
+model Like {
+  id           String     @id @default(cuid())
+  confessionId String     @map("confession_id")
+  userId       String     @map("user_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  confession   Confession @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([confessionId, userId])
+  @@index([confessionId])
+  @@index([userId])
+  @@map("likes")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  role      String   // 'user' | 'assistant'
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("chat_messages")
+}
