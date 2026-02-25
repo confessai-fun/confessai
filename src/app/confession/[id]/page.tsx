@@ -104,34 +104,92 @@ export default function ConfessionPage() {
     setPosting(false);
   };
 
+  const ensureBaseNetwork = async (): Promise<boolean> => {
+    try {
+      const chainId = await window.ethereum!.request({ method: 'eth_chainId' });
+      if (chainId === '0x2105') return true;
+      try {
+        await window.ethereum!.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x2105' }],
+        });
+        return true;
+      } catch (switchErr: any) {
+        if (switchErr.code === 4902) {
+          await window.ethereum!.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x2105',
+              chainName: 'Base',
+              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://mainnet.base.org'],
+              blockExplorerUrls: ['https://basescan.org'],
+            }],
+          });
+          return true;
+        }
+        return false;
+      }
+    } catch { return false; }
+  };
+
   const handleBaptize = async (amt: string) => {
     if (!window.ethereum || !isConnected || donating) return;
     const val = parseFloat(amt);
     if (!val || val <= 0) return;
     setDonating(true);
     try {
-      const weiHex = '0x' + BigInt(Math.round(val * 1e18)).toString(16);
-      const txHash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{ from: address, to: CHURCH_WALLET, value: weiHex }],
-      });
-      // Wait for confirmation
-      let confirmed = false;
-      for (let i = 0; i < 60; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const receipt = await window.ethereum.request({ method: 'eth_getTransactionReceipt', params: [txHash] });
-        if (receipt) { confirmed = true; break; }
+      const onBase = await ensureBaseNetwork();
+      if (!onBase) {
+        alert('Please switch to Base network in MetaMask to baptize.');
+        setDonating(false);
+        return;
       }
-      if (confirmed) {
-        await fetch('/api/donate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ confessionId: id, amount: val, txHash }),
+
+      const ownerWallet = c.user?.walletAddress;
+      const isSelfBaptize = !ownerWallet || ownerWallet.toLowerCase() === address?.toLowerCase();
+
+      let txHashChurch = '';
+      let txHashOwner = '';
+
+      if (isSelfBaptize) {
+        const fullWei = '0x' + BigInt(Math.round(val * 1e18)).toString(16);
+        txHashChurch = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{ from: address, to: CHURCH_WALLET, value: fullWei, chainId: '0x2105' }],
         });
-        setShowBaptize(false);
-        setDonateAmount('');
-        reload();
+        txHashOwner = txHashChurch;
+      } else {
+        const halfWei = '0x' + BigInt(Math.round((val / 2) * 1e18)).toString(16);
+        txHashChurch = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{ from: address, to: CHURCH_WALLET, value: halfWei, chainId: '0x2105' }],
+        });
+        await ensureBaseNetwork();
+        try {
+          txHashOwner = await window.ethereum.request({
+            method: 'eth_sendTransaction',
+            params: [{ from: address, to: ownerWallet, value: halfWei, chainId: '0x2105' }],
+          });
+        } catch {
+          console.warn('Owner tx failed, recording church-only');
+          txHashOwner = '';
+        }
       }
+
+      await fetch('/api/donate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confessionId: id,
+          amount: txHashOwner ? val : val / 2,
+          txHashChurch,
+          txHashOwner: txHashOwner || txHashChurch,
+        }),
+      });
+      setShowBaptize(false);
+      setDonateAmount('');
+      reload();
     } catch (e: any) {
       console.error('Baptize error:', e);
     }
@@ -181,7 +239,10 @@ export default function ConfessionPage() {
       {/* Top bar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-bg/80 backdrop-blur-md border-b border-gray-800/50">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <button onClick={() => router.back()} className="font-display text-base sm:text-lg text-white hover:text-accent transition-colors">
+          <button onClick={() => {
+            if (window.history.length > 1) router.back();
+            else router.push('/#wall');
+          }} className="font-display text-base sm:text-lg text-white hover:text-accent transition-colors">
             ← Back
           </button>
           <button
@@ -210,7 +271,7 @@ export default function ConfessionPage() {
                 </span>
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-400 mt-1">
-                <span className="font-mono">😈 {displayName}</span>
+                <a href={`/user/${c.user?.id}`} className="font-mono hover:text-accent transition-colors">😈 {displayName}</a>
                 {c.user?.sinScore > 0 && <span className="text-accent font-mono text-xs">🔥 {c.user.sinScore}</span>}
                 <span>·</span>
                 <span>{timeAgo(c.createdAt)}</span>
@@ -330,9 +391,9 @@ export default function ConfessionPage() {
                 <div key={d.id} className="px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <span className="text-yellow-400 text-sm shrink-0">🕊</span>
-                    <span className="font-mono text-xs sm:text-sm text-gray-300 truncate">
+                    <a href={`/user/${d.user?.id}`} className="font-mono text-xs sm:text-sm text-gray-300 truncate hover:text-accent transition-colors">
                       {d.user?.username || trunc(d.user?.walletAddress)}
-                    </span>
+                    </a>
                     <span className="text-gray-600 text-xs">·</span>
                     <span className="text-xs text-gray-500">{timeAgo(d.createdAt)}</span>
                   </div>
@@ -395,9 +456,9 @@ export default function ConfessionPage() {
               data.comments.map((cm: any) => (
                 <div key={cm.id} className="px-6 py-4">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="font-mono text-xs text-gray-400">
+                    <a href={`/user/${cm.user?.id}`} className="font-mono text-xs text-gray-400 hover:text-accent transition-colors">
                       {cm.user?.username || trunc(cm.user?.walletAddress)}
-                    </span>
+                    </a>
                     <span className="text-gray-700 text-xs">·</span>
                     <span className="text-xs text-gray-600">{timeAgo(cm.createdAt)}</span>
                   </div>

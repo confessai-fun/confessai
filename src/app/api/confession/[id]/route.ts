@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       orderBy: { createdAt: 'desc' },
       include: {
         user: {
-          select: { username: true, walletAddress: true },
+          select: { id: true, username: true, walletAddress: true },
         },
       },
     });
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       take: 50,
       include: {
         user: {
-          select: { username: true, walletAddress: true },
+          select: { id: true, username: true, walletAddress: true },
         },
       },
     });

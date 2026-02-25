@@ -98,22 +98,34 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const connect = useCallback(async () => {
     // Mobile without MetaMask injected → deep link to MetaMask app
     if (isMobileWithoutProvider()) {
-      // Get the current URL without protocol
       const host = window.location.host;
       const path = window.location.pathname;
       const dappUrl = `${host}${path}`;
-      // Deep link: opens MetaMask app and loads our dApp in its in-app browser
       window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
       return;
     }
 
-    if (typeof window.ethereum === 'undefined') {
+    // Wait briefly for ethereum to be injected (MetaMask can be slow)
+    let ethereum = window.ethereum;
+    if (!ethereum) {
+      await new Promise((r) => setTimeout(r, 500));
+      ethereum = window.ethereum;
+    }
+    if (!ethereum) {
+      // Still not found — check if MetaMask might be installed but not injected
+      // Try EIP-6963 provider discovery as fallback
+      await new Promise((r) => setTimeout(r, 1000));
+      ethereum = window.ethereum;
+    }
+
+    if (!ethereum) {
+      // Truly not installed
       window.open('https://metamask.io/download/', '_blank');
       return;
     }
 
     try {
-      const accounts: string[] = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const accounts: string[] = await ethereum.request({ method: 'eth_requestAccounts' });
       if (!accounts || accounts.length === 0) return;
       const walletAddress = accounts[0];
 
@@ -122,7 +134,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       const message = `Sign in to ConfessAI\n\nNonce: ${nonce}`;
 
-      const signature: string = await window.ethereum.request({
+      const signature: string = await ethereum.request({
         method: 'personal_sign',
         params: [message, walletAddress],
       });

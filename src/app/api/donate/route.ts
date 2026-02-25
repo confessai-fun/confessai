@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getWalletFromReq } from '@/lib/session';
 
-// POST /api/donate — record a donation after user sends ETH on-chain
+// POST /api/donate — record baptism donation (50% to confessor, 50% to church)
 export async function POST(req: NextRequest) {
   const wallet = await getWalletFromReq();
   if (!wallet) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const { confessionId, amount, txHash } = await req.json();
+  const { confessionId, amount, txHashChurch, txHashOwner } = await req.json();
 
-  if (!confessionId || !amount || !txHash) {
+  if (!confessionId || !amount) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
@@ -17,29 +17,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
   }
 
+  // Need at least one tx hash
+  if (!txHashChurch && !txHashOwner) {
+    return NextResponse.json({ error: 'Missing transaction hash' }, { status: 400 });
+  }
+
   try {
-    // Check confession exists
-    const confession = await prisma.confession.findUnique({ where: { id: confessionId } });
+    // Check confession exists and get owner
+    const confession = await prisma.confession.findUnique({
+      where: { id: confessionId },
+      include: { user: { select: { id: true, walletAddress: true } } },
+    });
     if (!confession) {
       return NextResponse.json({ error: 'Confession not found' }, { status: 404 });
     }
 
-    // Check txHash not already recorded (prevent duplicates)
-    const existing = await prisma.donation.findFirst({ where: { txHash } });
-    if (existing) {
-      return NextResponse.json({ error: 'Donation already recorded' }, { status: 409 });
+    // Prevent duplicate recording
+    if (txHashChurch) {
+      const existing = await prisma.donation.findFirst({ where: { txHash: txHashChurch } });
+      if (existing) return NextResponse.json({ error: 'Donation already recorded' }, { status: 409 });
+    }
+    if (txHashOwner) {
+      const existing = await prisma.donation.findFirst({ where: { txHash: txHashOwner } });
+      if (existing) return NextResponse.json({ error: 'Donation already recorded' }, { status: 409 });
     }
 
-    const user = await prisma.user.findUnique({ where: { walletAddress: wallet } });
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const donor = await prisma.user.findUnique({ where: { walletAddress: wallet } });
+    if (!donor) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    // Create donation record
+    const halfAmount = amount / 2;
+    const primaryTxHash = txHashChurch || txHashOwner;
+
+    // Create donation record (total amount, store both tx hashes)
     const donation = await prisma.donation.create({
       data: {
         confessionId,
-        userId: user.id,
+        userId: donor.id,
         amount,
-        txHash,
+        txHash: primaryTxHash,
       },
     });
 
@@ -52,16 +67,36 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update user totals
+    // Update donor totals (full amount they sent)
     await prisma.user.update({
-      where: { id: user.id },
+      where: { id: donor.id },
       data: {
         totalDonated: { increment: amount },
         donationCount: { increment: 1 },
       },
     });
 
-    return NextResponse.json({ success: true, donation });
+    // Update confession owner earnings (50%)
+    if (confession.user.id !== donor.id) {
+      // Only credit earnings if not self-baptizing
+      await prisma.user.update({
+        where: { id: confession.user.id },
+        data: {
+          totalEarned: { increment: halfAmount },
+          earnedCount: { increment: 1 },
+        },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      donation,
+      split: {
+        church: halfAmount,
+        owner: halfAmount,
+        ownerWallet: confession.user.walletAddress,
+      },
+    });
   } catch (err) {
     console.error('Donate error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
@@ -81,7 +116,7 @@ export async function GET(req: NextRequest) {
     const donations = await prisma.donation.findMany({
       where: { confessionId },
       orderBy: { amount: 'desc' },
-      include: { user: { select: { username: true, walletAddress: true } } },
+      include: { user: { select: { id: true, username: true, walletAddress: true } } },
       take: 20,
     });
 

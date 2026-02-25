@@ -88,6 +88,38 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
     setPosting(false);
   };
 
+  // Check and switch to Base network
+  const ensureBaseNetwork = async (): Promise<boolean> => {
+    try {
+      const chainId = await window.ethereum!.request({ method: 'eth_chainId' });
+      if (chainId === '0x2105') return true; // Already on Base (8453)
+      
+      try {
+        await window.ethereum!.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x2105' }],
+        });
+        return true;
+      } catch (switchErr: any) {
+        // Chain not added, add it
+        if (switchErr.code === 4902) {
+          await window.ethereum!.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x2105',
+              chainName: 'Base',
+              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://mainnet.base.org'],
+              blockExplorerUrls: ['https://basescan.org'],
+            }],
+          });
+          return true;
+        }
+        return false;
+      }
+    } catch { return false; }
+  };
+
   const handleBaptize = async () => {
     if (!isConnected || !donateAmount || donating) return;
     const amount = parseFloat(donateAmount);
@@ -100,30 +132,85 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
 
     setDonating(true);
     try {
-      // Send ETH on-chain via MetaMask
-      const weiHex = '0x' + BigInt(Math.floor(amount * 1e18)).toString(16);
+      // Ensure we're on Base network
+      const onBase = await ensureBaseNetwork();
+      if (!onBase) {
+        alert('Please switch to Base network in MetaMask to baptize.');
+        setDonating(false);
+        return;
+      }
 
-      const txHash = await window.ethereum!.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: address,
-          to: CHURCH_WALLET,
-          value: weiHex,
-        }],
+      const halfWei = '0x' + BigInt(Math.floor((amount / 2) * 1e18)).toString(16);
+
+      // Look up confession owner wallet
+      const confRes = await fetch(`/api/confession/${c.id}`);
+      const confData = await confRes.json();
+      const ownerWallet = confData?.confession?.user?.walletAddress;
+      const isSelfBaptize = !ownerWallet || ownerWallet.toLowerCase() === address?.toLowerCase();
+
+      // Debug: log wallets to console
+      console.log('[Baptize Debug]', {
+        donor: address,
+        ownerWallet,
+        churchWallet: CHURCH_WALLET,
+        isSelfBaptize,
+        confessionUserId: confData?.confession?.user?.id,
+        confessionUserName: confData?.confession?.user?.username,
       });
 
-      // Record donation in DB
+      let txHashChurch = '';
+      let txHashOwner = '';
+
+      if (isSelfBaptize) {
+        // Self-baptizing: send full amount to church in 1 tx
+        const fullWei = '0x' + BigInt(Math.floor(amount * 1e18)).toString(16);
+        txHashChurch = await window.ethereum!.request({
+          method: 'eth_sendTransaction',
+          params: [{ from: address, to: CHURCH_WALLET, value: fullWei, chainId: '0x2105' }],
+        });
+        txHashOwner = txHashChurch;
+      } else {
+        // Show user the split
+        console.log(`[Baptize] Sending ${amount/2} ETH to Church: ${CHURCH_WALLET}`);
+        console.log(`[Baptize] Sending ${amount/2} ETH to Owner: ${ownerWallet}`);
+
+        // Tx 1: 50% to Church
+        txHashChurch = await window.ethereum!.request({
+          method: 'eth_sendTransaction',
+          params: [{ from: address, to: CHURCH_WALLET, value: halfWei, chainId: '0x2105' }],
+        });
+
+        // Re-verify chain before Tx 2
+        await ensureBaseNetwork();
+
+        // Tx 2: 50% to confession owner
+        try {
+          console.log(`[Baptize] Sending Tx2 to owner: ${ownerWallet}`);
+          txHashOwner = await window.ethereum!.request({
+            method: 'eth_sendTransaction',
+            params: [{ from: address, to: ownerWallet, value: halfWei, chainId: '0x2105' }],
+          });
+          console.log(`[Baptize] Tx2 hash: ${txHashOwner}`);
+        } catch (tx2Err: any) {
+          // If user rejected tx2, still record church donation
+          console.warn('Owner tx failed/rejected, recording church-only donation');
+          txHashOwner = '';
+        }
+      }
+
+      // Record in DB (even if only church tx succeeded)
       await fetch('/api/donate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           confessionId: c.id,
-          amount,
-          txHash,
+          amount: txHashOwner ? amount : amount / 2, // half if owner tx failed
+          txHashChurch,
+          txHashOwner: txHashOwner || txHashChurch,
         }),
       });
 
-      setDonated(donated + amount);
+      setDonated(donated + (txHashOwner ? amount : amount / 2));
       setDonateCount(donateCount + 1);
       setDonateAmount('');
       setShowBaptize(false);
@@ -147,7 +234,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center overflow-hidden">{SIN_ICONS[c.sinCategory] ? <img src={SIN_ICONS[c.sinCategory]} alt="" width={18} height={18} /> : <span className="text-xs">😈</span>}</div>
-          <span className="font-mono text-sm text-gray-400">{displayName}</span>
+          <a href={`/user/${c.user?.id}`} className="font-mono text-sm text-gray-400 hover:text-accent transition-colors">{displayName}</a>
           {c.user?.sinScore > 0 && <span className="font-mono text-xs text-accent">🔥 {c.user.sinScore}</span>}
         </div>
         <div className="flex items-center gap-3">
@@ -230,7 +317,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
               🕊 Church of $CONFESS — Baptism Offering
             </div>
             <p className="text-xs text-gray-400 mb-4">
-              Donate ETH to the Church to baptize this sinner. The bigger the offering, the greater the salvation. All donations are on-chain and visible to the congregation.
+              50% goes to the confessor, 50% to the Church. You&apos;ll approve 2 transactions in MetaMask. Make sure you&apos;re on Base network.
             </p>
             <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
               {[0.001, 0.005, 0.01, 0.05].map((amt) => (
@@ -289,9 +376,9 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
           ) : (
             comments.map((cm: any) => (
               <div key={cm.id} className="py-3">
-                <div className="font-mono text-[11px] text-gray-500 mb-1">
+                <a href={`/user/${cm.user?.id}`} className="font-mono text-[11px] text-gray-500 hover:text-accent transition-colors mb-1 inline-block">
                   {cm.user?.username || (cm.user?.walletAddress ? trunc(cm.user.walletAddress) : 'Anon')}
-                </div>
+                </a>
                 <div className="text-sm text-gray-300">{cm.commentText}</div>
               </div>
             ))

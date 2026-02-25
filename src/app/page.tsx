@@ -8,6 +8,8 @@ import FeedCard from '@/components/FeedCard';
 import ChatPanel from '@/components/ChatPanel';
 import { useToast } from '@/components/Toast';
 
+const VALID_TABS = ['home', 'confess', 'wall', 'leaderboard', 'chat', 'mysins', 'mybaptisms', 'profile'];
+
 const SINS = [
   { icon: '/greed_icon.png', name: 'Greed', desc: '"I knew it was a rug but the APY was 40,000%"', gradient: 'from-yellow-500/20 to-amber-600/20', border: 'border-yellow-500/30', glow: 'shadow-yellow-500/10' },
   { icon: '/fomo_icon.png', name: 'FOMO', desc: '"A guy on Twitter said it\'s going to $1 so I sold my car"', gradient: 'from-blue-500/20 to-cyan-500/20', border: 'border-blue-500/30', glow: 'shadow-blue-500/10' },
@@ -15,7 +17,7 @@ const SINS = [
   { icon: '/sloth_icon.png', name: 'Sloth', desc: '"Too lazy to revoke approvals. Got drained 3 times."', gradient: 'from-green-500/20 to-emerald-500/20', border: 'border-green-500/30', glow: 'shadow-green-500/10' },
   { icon: '/pride_icon.png', name: 'Pride', desc: '"I told everyone I sold the top. I absolutely did not."', gradient: 'from-purple-500/20 to-violet-500/20', border: 'border-purple-500/30', glow: 'shadow-purple-500/10' },
   { icon: '/lust_icon.png', name: 'Lust', desc: '"I bought a token because the dev was attractive"', gradient: 'from-pink-500/20 to-rose-500/20', border: 'border-pink-500/30', glow: 'shadow-pink-500/10' },
-  { icon: '/cope_icon.png', name: 'Cope', desc: '"It\'s not a loss if I don\'t sell" — me, down 97%', gradient: 'from-teal-500/20 to-cyan-500/20', border: 'border-teal-500/30', glow: 'shadow-teal-500/1e' },
+  { icon: '/cope_icon.png', name: 'Cope', desc: '"It\'s not a loss if I don\'t sell" — me, down 97%', gradient: 'from-teal-500/20 to-cyan-500/20', border: 'border-teal-500/30', glow: 'shadow-teal-500/10' },
 ];
 
 const STEPS = [
@@ -319,6 +321,7 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
 function LeaderboardTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [lbTab, setLbTab] = useState<'overall' | 'donors' | 'earners'>('overall');
 
   useEffect(() => {
     setLoading(true);
@@ -328,6 +331,25 @@ function LeaderboardTab() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const medalStyle = (i: number) =>
+    i === 0 ? 'bg-yellow-500 text-black' : i === 1 ? 'bg-gray-400 text-black' : i === 2 ? 'bg-amber-700 text-white' : 'bg-gray-800 text-gray-400';
+
+  const renderUserRow = (d: any, i: number, extra?: React.ReactNode) => (
+    <a key={d.id} href={`/user/${d.id}`} className="px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 hover:bg-white/[0.02] transition-colors">
+      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold shrink-0 ${medalStyle(i)}`}>
+        {i + 1}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-white text-sm font-medium truncate hover:text-accent transition-colors">{d.username || trunc(d.walletAddress)}</div>
+        <div className="text-xs text-gray-500 truncate">
+          {d.donationCount} baptism{d.donationCount !== 1 ? 's' : ''} • {d.earnedCount || 0} earned • 🔥 {d.sinScore}
+          {d.ageDays !== undefined && <span> • {d.ageDays}d old</span>}
+        </div>
+      </div>
+      {extra}
+    </a>
+  );
 
   return (
     <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
@@ -343,48 +365,109 @@ function LeaderboardTab() {
         <>
           {/* Treasury Stats */}
           <div className="grid grid-cols-2 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
-              <div className="font-mono text-3xl text-yellow-400 mb-1">{(data?.treasury?.totalETH || 0).toFixed(4)}</div>
+            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-4 sm:p-6 text-center">
+              <div className="font-mono text-2xl sm:text-3xl text-yellow-400 mb-1">{(data?.treasury?.totalETH || 0).toFixed(4)}</div>
               <div className="text-xs text-gray-500 uppercase tracking-wider">Total ETH Donated</div>
             </div>
-            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
-              <div className="font-mono text-3xl text-yellow-400 mb-1">{data?.treasury?.totalDonations || 0}</div>
+            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-4 sm:p-6 text-center">
+              <div className="font-mono text-2xl sm:text-3xl text-yellow-400 mb-1">{data?.treasury?.totalDonations || 0}</div>
               <div className="text-xs text-gray-500 uppercase tracking-wider">Total Baptisms</div>
             </div>
           </div>
 
-          {/* Top Donors */}
-          <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-gray-800">
-              <div className="font-mono text-xs text-yellow-400 uppercase tracking-widest">🕊 Top Donors</div>
-            </div>
-            {(data?.topDonors?.length || 0) === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm">No donations yet. Be the first to baptize a sinner.</div>
-            ) : (
-              <div className="divide-y divide-gray-800">
-                {data.topDonors.map((d: any, i: number) => (
-                  <div key={d.id} className="px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
-                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold shrink-0 ${
-                      i === 0 ? 'bg-yellow-500 text-black' : i === 1 ? 'bg-gray-400 text-black' : i === 2 ? 'bg-amber-700 text-white' : 'bg-gray-800 text-gray-400'
-                    }`}>
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white text-sm font-medium truncate">{d.username || trunc(d.walletAddress)}</div>
-                      <div className="text-xs text-gray-500 truncate">{d.donationCount} baptism{d.donationCount !== 1 ? 's' : ''} • 🔥 {d.sinScore} sin score</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-sm text-yellow-400">{d.totalDonated.toFixed(4)} ETH</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* Leaderboard Tabs */}
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+            {[
+              { id: 'overall' as const, label: '🏆 Overall' },
+              { id: 'donors' as const, label: '🕊 Top Donors' },
+              { id: 'earners' as const, label: '💰 Top Earners' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setLbTab(t.id)}
+                className={`px-4 py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all shrink-0 ${
+                  lbTab === t.id
+                    ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                    : 'bg-card border border-gray-700 text-gray-400 hover:text-white'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
+
+          {/* Overall Leaderboard */}
+          {lbTab === 'overall' && (
+            <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-8">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-800">
+                <div className="font-mono text-xs text-accent uppercase tracking-widest">🏆 Combined Leaderboard</div>
+                <div className="text-[10px] text-gray-600 mt-1">Scored by: baptisms + earnings + sin score + profile age</div>
+              </div>
+              {(data?.topUsers?.length || 0) === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-sm">No activity yet.</div>
+              ) : (
+                <div className="divide-y divide-gray-800">
+                  {data.topUsers.map((d: any, i: number) =>
+                    renderUserRow(d, i, (
+                      <div className="text-right shrink-0">
+                        <div className="font-mono text-sm text-accent">{d.compositeScore} pts</div>
+                        <div className="text-[10px] text-gray-600">{d.totalDonated.toFixed(4)} / {(d.totalEarned || 0).toFixed(4)} ETH</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Top Donors */}
+          {lbTab === 'donors' && (
+            <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-8">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-800">
+                <div className="font-mono text-xs text-yellow-400 uppercase tracking-widest">🕊 Most Generous Baptizers</div>
+              </div>
+              {(data?.topDonors?.length || 0) === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-sm">No donations yet.</div>
+              ) : (
+                <div className="divide-y divide-gray-800">
+                  {data.topDonors.map((d: any, i: number) =>
+                    renderUserRow(d, i, (
+                      <div className="text-right shrink-0">
+                        <div className="font-mono text-sm text-yellow-400">{d.totalDonated.toFixed(4)} ETH</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Top Earners */}
+          {lbTab === 'earners' && (
+            <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-8">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-800">
+                <div className="font-mono text-xs text-green-400 uppercase tracking-widest">💰 Top Earners (Confessions that got baptized)</div>
+              </div>
+              {(data?.topEarners?.length || 0) === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-sm">No earnings yet. Confess harder.</div>
+              ) : (
+                <div className="divide-y divide-gray-800">
+                  {data.topEarners.map((d: any, i: number) =>
+                    renderUserRow(d, i, (
+                      <div className="text-right shrink-0">
+                        <div className="font-mono text-sm text-green-400">{(d.totalEarned || 0).toFixed(4)} ETH</div>
+                        <div className="text-[10px] text-gray-600">{d.earnedCount || 0} baptisms received</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Recent Donations */}
           <div className="bg-card border border-gray-800 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-800">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-800">
               <div className="font-mono text-xs text-gray-400 uppercase tracking-widest">Recent Baptisms</div>
             </div>
             {(data?.recentDonations?.length || 0) === 0 ? (
@@ -392,15 +475,17 @@ function LeaderboardTab() {
             ) : (
               <div className="divide-y divide-gray-800">
                 {data.recentDonations.map((d: any) => (
-                  <a key={d.id} href={`/confession/${d.confessionId || d.confession?.id}`} className="px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
+                  <div key={d.id} className="px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-3">
                     <span className="text-yellow-400 shrink-0">🕊</span>
                     <div className="flex-1 min-w-0 text-xs sm:text-sm">
-                      <span className="text-white">{d.user?.username || trunc(d.user?.walletAddress || '')}</span>
+                      <a href={`/user/${d.user?.id}`} className="text-white hover:text-accent transition-colors">{d.user?.username || trunc(d.user?.walletAddress || '')}</a>
                       <span className="text-gray-500"> baptized </span>
-                      <span className="text-gray-400 truncate">"{(d.confession?.confessionText || '').slice(0, 30)}..."</span>
+                      <a href={`/confession/${d.confessionId || d.confession?.id}`} className="text-gray-400 hover:text-white transition-colors truncate">
+                        &ldquo;{(d.confession?.confessionText || '').slice(0, 30)}...&rdquo;
+                      </a>
                     </div>
-                    <div className="font-mono text-xs text-yellow-400">{d.amount.toFixed(4)} ETH</div>
-                  </a>
+                    <div className="font-mono text-xs text-yellow-400 shrink-0">{d.amount.toFixed(4)} ETH</div>
+                  </div>
                 ))}
               </div>
             )}
@@ -415,7 +500,35 @@ export default function Home() {
   const { address, isConnected } = useWallet();
   const toast = useToast();
 
-  const [tab, setTab] = useState('home');
+  // Read initial tab from URL hash
+  const getTabFromHash = () => {
+    if (typeof window === 'undefined') return 'home';
+    const hash = window.location.hash.replace('#', '');
+    return VALID_TABS.includes(hash) ? hash : 'home';
+  };
+
+  const [tab, setTabState] = useState('home');
+
+  // Sync tab → URL hash
+  const setTab = useCallback((newTab: string) => {
+    setTabState(newTab);
+    if (typeof window !== 'undefined') {
+      const newHash = newTab === 'home' ? '' : `#${newTab}`;
+      window.history.replaceState(null, '', `/${newHash}`);
+    }
+  }, []);
+
+  // Read hash on mount + listen for popstate (browser back/forward)
+  useEffect(() => {
+    setTabState(getTabFromHash());
+    const onHashChange = () => setTabState(getTabFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    window.addEventListener('popstate', onHashChange);
+    return () => {
+      window.removeEventListener('hashchange', onHashChange);
+      window.removeEventListener('popstate', onHashChange);
+    };
+  }, []);
   const [confessionText, setConfessionText] = useState('');
   const [loading, setLoading] = useState(false);
   const [salvation, setSalvation] = useState<any>(null);
@@ -741,22 +854,26 @@ export default function Home() {
                   <div className="flex-1">
                     <div className="font-display text-2xl text-white mb-1">{profile?.username || trunc(address)}</div>
                     <div className="font-mono text-sm text-gray-500 mb-4">{trunc(address)}</div>
-                    <div className="flex gap-4 sm:gap-8 max-sm:justify-center flex-wrap">
+                    <div className="flex gap-4 sm:gap-6 max-sm:justify-center flex-wrap">
                       <div className="text-center">
-                        <div className="font-mono text-2xl text-accent">{profile?.sinScore || 0}</div>
-                        <div className="text-[11px] text-gray-500 uppercase tracking-wider">Sin Score</div>
+                        <div className="font-mono text-xl sm:text-2xl text-accent">{profile?.sinScore || 0}</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">Sin Score</div>
                       </div>
                       <div className="text-center">
-                        <div className="font-mono text-2xl text-white">{profile?.totalConfessions || 0}</div>
-                        <div className="text-[11px] text-gray-500 uppercase tracking-wider">Confessions</div>
+                        <div className="font-mono text-xl sm:text-2xl text-white">{profile?.totalConfessions || 0}</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">Confessions</div>
                       </div>
                       <div className="text-center">
-                        <div className="font-mono text-2xl text-yellow-400">{(profile?.totalDonated || 0).toFixed(4)}</div>
-                        <div className="text-[11px] text-gray-500 uppercase tracking-wider">ETH Donated</div>
+                        <div className="font-mono text-xl sm:text-2xl text-yellow-400">{(profile?.totalDonated || 0).toFixed(4)}</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">ETH Donated</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-mono text-xl sm:text-2xl text-green-400">{(profile?.totalEarned || 0).toFixed(4)}</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">ETH Earned</div>
                       </div>
                       <div className="text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setTab('mybaptisms')}>
-                        <div className="font-mono text-2xl text-yellow-400">{profile?.donationCount || 0}</div>
-                        <div className="text-[11px] text-gray-500 uppercase tracking-wider underline decoration-dotted">Baptisms →</div>
+                        <div className="font-mono text-xl sm:text-2xl text-gray-300">{profile?.donationCount || 0}</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider underline decoration-dotted">Baptisms →</div>
                       </div>
                     </div>
                   </div>
@@ -788,20 +905,35 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Quick link to My Sins */}
-              <button
-                onClick={() => setTab('mysins')}
-                className="w-full bg-card border border-gray-800 rounded-xl p-5 flex items-center justify-between hover:border-gray-600 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">📜</span>
-                  <div className="text-left">
-                    <div className="text-white font-medium text-sm">View My Confessions</div>
-                    <div className="text-gray-500 text-xs">{profile?.totalConfessions || 0} confessions • Filter by category</div>
+              {/* Quick links */}
+              <div className="flex flex-col gap-3">
+                <a
+                  href={`/user/${profile?.id}`}
+                  className="w-full bg-card border border-gray-800 rounded-xl p-5 flex items-center justify-between hover:border-gray-600 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">👤</span>
+                    <div className="text-left">
+                      <div className="text-white font-medium text-sm">View Public Profile</div>
+                      <div className="text-gray-500 text-xs">See how others see you • Share your profile</div>
+                    </div>
                   </div>
-                </div>
-                <span className="text-gray-500 group-hover:text-white transition-colors">→</span>
-              </button>
+                  <span className="text-gray-500 group-hover:text-white transition-colors">→</span>
+                </a>
+                <button
+                  onClick={() => setTab('mysins')}
+                  className="w-full bg-card border border-gray-800 rounded-xl p-5 flex items-center justify-between hover:border-gray-600 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">📜</span>
+                    <div className="text-left">
+                      <div className="text-white font-medium text-sm">View My Confessions</div>
+                      <div className="text-gray-500 text-xs">{profile?.totalConfessions || 0} confessions • Filter by category</div>
+                    </div>
+                  </div>
+                  <span className="text-gray-500 group-hover:text-white transition-colors">→</span>
+                </button>
+              </div>
             </>
           )}
         </section>
