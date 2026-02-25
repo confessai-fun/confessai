@@ -103,7 +103,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
       // Send ETH on-chain via MetaMask
       const weiHex = '0x' + BigInt(Math.floor(amount * 1e18)).toString(16);
 
-      const txHash = await window.ethereum.request({
+      const txHash = await window.ethereum!.request({
         method: 'eth_sendTransaction',
         params: [{
           from: address,
