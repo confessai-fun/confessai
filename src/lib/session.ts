@@ -3,7 +3,6 @@ import { cookies } from 'next/headers';
 
 export interface SessionData {
   walletAddress?: string;
-  nonce?: string;
 }
 
 export const sessionOptions = {
@@ -17,13 +16,13 @@ export const sessionOptions = {
   },
 };
 
-// Get session using cookies() — works in App Router on Vercel
+// Get session using cookies() — Next.js 14 (synchronous cookies())
 export async function getSession(): Promise<IronSession<SessionData>> {
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   return getIronSession<SessionData>(cookieStore, sessionOptions);
 }
 
-// Quick helper to get wallet address from session
+// Quick helper to get wallet address
 export async function getWalletFromReq(): Promise<string | null> {
   try {
     const session = await getSession();

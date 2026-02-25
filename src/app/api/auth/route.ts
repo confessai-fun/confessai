@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getIronSession } from 'iron-session';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac } from 'crypto';
 import { ethers } from 'ethers';
 import { cookies } from 'next/headers';
+import { getIronSession } from 'iron-session';
 
 interface SessionData {
   walletAddress?: string;
-  nonce?: string;
 }
 
 const sessionOptions = {
@@ -16,29 +15,49 @@ const sessionOptions = {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 7,
   },
 };
 
-// Helper: get session using cookies() for App Router
-async function getSession() {
-  const cookieStore = await cookies();
-  return getIronSession<SessionData>(cookieStore, sessionOptions);
+const NONCE_SECRET = process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long_for_dev';
+
+// Sign a nonce so we can verify it later without storing in session
+function signNonce(nonce: string): string {
+  return createHmac('sha256', NONCE_SECRET).update(nonce).digest('hex');
+}
+
+function verifyNonce(nonce: string, mac: string): boolean {
+  const expected = createHmac('sha256', NONCE_SECRET).update(nonce).digest('hex');
+  return expected === mac;
 }
 
 // GET /api/auth — get nonce or check session
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
 
     if (action === 'nonce') {
+      // Generate nonce + HMAC signature
       const nonce = randomBytes(16).toString('hex');
-      session.nonce = nonce;
-      await session.save();
-      return NextResponse.json({ nonce });
+      const mac = signNonce(nonce);
+
+      // Return nonce and its MAC — client sends both back on POST
+      // Also set nonce in a simple cookie as backup
+      const response = NextResponse.json({ nonce, mac });
+      response.cookies.set('pump_nonce', `${nonce}:${mac}`, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 300, // 5 min expiry
+        path: '/',
+      });
+      return response;
     }
+
+    // Check existing session
+    const cookieStore = cookies();
+    const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
 
     return NextResponse.json({
       authenticated: !!session.walletAddress,
@@ -53,15 +72,30 @@ export async function GET(req: NextRequest) {
 // POST /api/auth — verify signature
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    const { address, signature, nonce } = await req.json();
+    const { address, signature, nonce, mac } = await req.json();
 
-    console.log('[Auth] Verifying:', { address: address?.slice(0, 10), nonce: nonce?.slice(0, 8), sessionNonce: session.nonce?.slice(0, 8) });
+    // Verify nonce authenticity via HMAC (no session needed!)
+    // Try client-provided MAC first, fall back to cookie
+    let nonceValid = false;
 
-    // Verify nonce matches
-    if (!session.nonce || session.nonce !== nonce) {
-      console.error('[Auth] Nonce mismatch — session:', session.nonce, 'client:', nonce);
-      return NextResponse.json({ error: 'Invalid nonce. Please try again.' }, { status: 401 });
+    if (mac && nonce) {
+      nonceValid = verifyNonce(nonce, mac);
+    }
+
+    if (!nonceValid) {
+      // Try cookie-based nonce as fallback
+      const nonceCookie = req.cookies.get('pump_nonce')?.value;
+      if (nonceCookie) {
+        const [cookieNonce, cookieMac] = nonceCookie.split(':');
+        if (cookieNonce === nonce && verifyNonce(cookieNonce, cookieMac)) {
+          nonceValid = true;
+        }
+      }
+    }
+
+    if (!nonceValid) {
+      console.error('[Auth] Nonce verification failed');
+      return NextResponse.json({ error: 'Invalid or expired nonce. Please try again.' }, { status: 401 });
     }
 
     // Build the same message that was signed on client
@@ -70,20 +104,24 @@ export async function POST(req: NextRequest) {
     // Recover signer address from signature
     const recovered = ethers.verifyMessage(message, signature);
 
-    // Compare addresses (case-insensitive)
     if (recovered.toLowerCase() !== address.toLowerCase()) {
       console.error('[Auth] Address mismatch — recovered:', recovered, 'claimed:', address);
       return NextResponse.json({ error: 'Signature mismatch' }, { status: 401 });
     }
 
+    // Set session
+    const cookieStore = cookies();
+    const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
     session.walletAddress = address.toLowerCase();
-    session.nonce = undefined;
     await session.save();
 
-    return NextResponse.json({
+    // Clear nonce cookie
+    const response = NextResponse.json({
       authenticated: true,
       walletAddress: session.walletAddress,
     });
+    response.cookies.delete('pump_nonce');
+    return response;
   } catch (err) {
     console.error('Auth POST error:', err);
     return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
@@ -93,7 +131,8 @@ export async function POST(req: NextRequest) {
 // DELETE /api/auth — logout
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getSession();
+    const cookieStore = cookies();
+    const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
     session.destroy();
     return NextResponse.json({ authenticated: false });
   } catch (err) {

@@ -85,9 +85,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const walletAddress = accounts[0];
 
       const nonceRes = await fetch('/api/auth?action=nonce');
-      const { nonce } = await nonceRes.json();
+      const { nonce, mac } = await nonceRes.json();
 
-      const message = `Sign in to Confessai.fun\n\nNonce: ${nonce}`;
+      const message = `Sign in to PumpConfession.ai\n\nNonce: ${nonce}`;
 
       const signature: string = await window.ethereum.request({
         method: 'personal_sign',
@@ -97,7 +97,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const verifyRes = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: walletAddress, signature, nonce }),
+        body: JSON.stringify({ address: walletAddress, signature, nonce, mac }),
       });
 
       const result = await verifyRes.json();
