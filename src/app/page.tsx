@@ -14,7 +14,8 @@ const SINS = [
   { icon: '/wrath_icon.png', name: 'Wrath', desc: '"I mass reported the dev\'s Twitter after getting rugged"', gradient: 'from-red-500/20 to-orange-500/20', border: 'border-red-500/30', glow: 'shadow-red-500/10' },
   { icon: '/sloth_icon.png', name: 'Sloth', desc: '"Too lazy to revoke approvals. Got drained 3 times."', gradient: 'from-green-500/20 to-emerald-500/20', border: 'border-green-500/30', glow: 'shadow-green-500/10' },
   { icon: '/pride_icon.png', name: 'Pride', desc: '"I told everyone I sold the top. I absolutely did not."', gradient: 'from-purple-500/20 to-violet-500/20', border: 'border-purple-500/30', glow: 'shadow-purple-500/10' },
-  { icon: '/cope_icon.png', name: 'Cope', desc: '"It\'s not a loss if I don\'t sell" — me, down 97%', gradient: 'from-teal-500/20 to-cyan-500/20', border: 'border-teal-500/30', glow: 'shadow-teal-500/10' },
+  { icon: '/lust_icon.png', name: 'Lust', desc: '"I bought a token because the dev was attractive"', gradient: 'from-pink-500/20 to-rose-500/20', border: 'border-pink-500/30', glow: 'shadow-pink-500/10' },
+  { icon: '/cope_icon.png', name: 'Cope', desc: '"It\'s not a loss if I don\'t sell" — me, down 97%', gradient: 'from-teal-500/20 to-cyan-500/20', border: 'border-teal-500/30', glow: 'shadow-teal-500/1e' },
 ];
 
 const STEPS = [
@@ -90,7 +91,7 @@ function FeedSection({
   useEffect(() => { loadFeed(); }, [loadFeed]);
 
   return (
-    <section className="max-w-3xl mx-auto px-6 pt-32 pb-20">
+    <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
       <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">{subtitle}</div>
       <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-8">{title}</h2>
 
@@ -201,7 +202,7 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
   };
 
   return (
-    <section className="max-w-3xl mx-auto px-6 pt-32 pb-20">
+    <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
       <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Your Offerings</div>
       <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-8">My Baptisms</h2>
 
@@ -241,7 +242,7 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
               {data.donations.map((d: any) => (
                 <div key={d.id} className="bg-card border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-all">
                   {/* Baptism header */}
-                  <div className="bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border-b border-yellow-500/10 px-6 py-3 flex items-center justify-between">
+                  <div className="bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border-b border-yellow-500/10 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-yellow-400">🕊</span>
                       <span className="font-mono text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} ETH</span>
@@ -262,7 +263,7 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
                   </div>
 
                   {/* Confession preview */}
-                  <div className="px-6 py-5">
+                  <div className="px-4 sm:px-6 py-4 sm:py-5">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex gap-2">
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold uppercase bg-accent/15 text-accent border border-accent/30">
@@ -329,7 +330,7 @@ function LeaderboardTab() {
   }, []);
 
   return (
-    <section className="max-w-3xl mx-auto px-6 pt-32 pb-20">
+    <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
       <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Church Treasury</div>
       <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-8">Baptism Leaderboard</h2>
 
@@ -362,15 +363,15 @@ function LeaderboardTab() {
             ) : (
               <div className="divide-y divide-gray-800">
                 {data.topDonors.map((d: any, i: number) => (
-                  <div key={d.id} className="px-6 py-4 flex items-center gap-4">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  <div key={d.id} className="px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold shrink-0 ${
                       i === 0 ? 'bg-yellow-500 text-black' : i === 1 ? 'bg-gray-400 text-black' : i === 2 ? 'bg-amber-700 text-white' : 'bg-gray-800 text-gray-400'
                     }`}>
                       {i + 1}
                     </div>
-                    <div className="flex-1">
-                      <div className="text-white text-sm font-medium">{d.username || trunc(d.walletAddress)}</div>
-                      <div className="text-xs text-gray-500">{d.donationCount} baptism{d.donationCount !== 1 ? 's' : ''} • 🔥 {d.sinScore} sin score</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white text-sm font-medium truncate">{d.username || trunc(d.walletAddress)}</div>
+                      <div className="text-xs text-gray-500 truncate">{d.donationCount} baptism{d.donationCount !== 1 ? 's' : ''} • 🔥 {d.sinScore} sin score</div>
                     </div>
                     <div className="text-right">
                       <div className="font-mono text-sm text-yellow-400">{d.totalDonated.toFixed(4)} ETH</div>
@@ -391,12 +392,12 @@ function LeaderboardTab() {
             ) : (
               <div className="divide-y divide-gray-800">
                 {data.recentDonations.map((d: any) => (
-                  <a key={d.id} href={`/confession/${d.confessionId || d.confession?.id}`} className="px-6 py-3 flex items-center gap-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
-                    <span className="text-yellow-400">🕊</span>
-                    <div className="flex-1 text-sm">
+                  <a key={d.id} href={`/confession/${d.confessionId || d.confession?.id}`} className="px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
+                    <span className="text-yellow-400 shrink-0">🕊</span>
+                    <div className="flex-1 min-w-0 text-xs sm:text-sm">
                       <span className="text-white">{d.user?.username || trunc(d.user?.walletAddress || '')}</span>
                       <span className="text-gray-500"> baptized </span>
-                      <span className="text-gray-400">"{(d.confession?.confessionText || '').slice(0, 40)}..."</span>
+                      <span className="text-gray-400 truncate">"{(d.confession?.confessionText || '').slice(0, 30)}..."</span>
                     </div>
                     <div className="font-mono text-xs text-yellow-400">{d.amount.toFixed(4)} ETH</div>
                   </a>
@@ -496,7 +497,7 @@ export default function Home() {
       {tab === 'home' && (
         <>
           {/* Hero */}
-          <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-32 pb-20 relative">
+          <section className="min-h-[85vh] md:min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-20 md:pt-32 pb-16 md:pb-20 relative">
             <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle,rgba(255,45,45,0.15),transparent_70%)] pointer-events-none opacity-40" />
             <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
               <span className="w-2 h-2 bg-accent rounded-full animate-blink" /> Live on Base · confessai.fun
@@ -507,35 +508,35 @@ export default function Home() {
             <p className="text-[clamp(16px,2vw,20px)] text-gray-400 max-w-xl mb-12 animate-fade-up" style={{ animationDelay: '0.2s' }}>
               The on-chain confessional for degens. An AI priest judges your worst trades, assigns your penance, and lets the community baptize your sins with ETH. Every confession is permanent. No edits. No deletes. No mercy.
             </p>
-            <div className="flex gap-4 flex-wrap justify-center animate-fade-up" style={{ animationDelay: '0.3s' }}>
-              <button onClick={() => setTab('confess')} className="bg-accent text-white px-10 py-4 rounded-full font-bold text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
+            <div className="flex gap-3 sm:gap-4 flex-col sm:flex-row justify-center animate-fade-up w-full sm:w-auto px-4 sm:px-0" style={{ animationDelay: '0.3s' }}>
+              <button onClick={() => setTab('confess')} className="bg-accent text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
                 ⛪ Enter the Confessional
               </button>
-              <button onClick={() => setTab('leaderboard')} className="border border-gray-600 text-gray-300 px-10 py-4 rounded-full font-semibold text-base hover:border-gray-400 hover:text-white hover:-translate-y-0.5 transition-all">
+              <button onClick={() => setTab('leaderboard')} className="border border-gray-600 text-gray-300 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base hover:border-gray-400 hover:text-white hover:-translate-y-0.5 transition-all">
                 🕊 Baptism Leaderboard
               </button>
             </div>
           </section>
 
           {/* Stats */}
-          <section className="py-20 border-t border-gray-800/50">
-            <div className="flex justify-center gap-16 max-w-5xl mx-auto px-6 max-md:flex-col max-md:gap-10 max-md:items-center">
+          <section className="py-12 md:py-20 border-t border-gray-800/50">
+            <div className="flex justify-center gap-8 md:gap-16 max-w-5xl mx-auto px-4 sm:px-6 max-sm:flex-col max-sm:gap-6 max-sm:items-center">
               <div className="text-center group">
-                <div className="font-mono text-6xl font-bold text-white mb-2 tabular-nums tracking-tight">
+                <div className="font-mono text-4xl md:text-6xl font-bold text-white mb-2 tabular-nums tracking-tight">
                   {displayStats.confessions.toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-500 uppercase tracking-wider">Confessions</div>
               </div>
-              <div className="hidden md:block w-px h-20 bg-gradient-to-b from-transparent via-gray-700 to-transparent" />
+              <div className="hidden sm:block w-px h-20 bg-gradient-to-b from-transparent via-gray-700 to-transparent" />
               <div className="text-center group">
-                <div className="font-mono text-6xl font-bold text-accent mb-2 tabular-nums tracking-tight">
+                <div className="font-mono text-4xl md:text-6xl font-bold text-accent mb-2 tabular-nums tracking-tight">
                   {displayStats.sinners.toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-500 uppercase tracking-wider">Sinners Judged</div>
               </div>
-              <div className="hidden md:block w-px h-20 bg-gradient-to-b from-transparent via-gray-700 to-transparent" />
+              <div className="hidden sm:block w-px h-20 bg-gradient-to-b from-transparent via-gray-700 to-transparent" />
               <div className="text-center group">
-                <div className="font-mono text-6xl font-bold mb-2 tabular-nums tracking-tight text-green-400">
+                <div className="font-mono text-4xl md:text-6xl font-bold mb-2 tabular-nums tracking-tight text-green-400">
                   {displayStats.onChain.toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-500 uppercase tracking-wider flex items-center justify-center gap-1.5">
@@ -546,15 +547,15 @@ export default function Home() {
           </section>
 
           {/* 7 Sins */}
-          <section className="py-20 border-t border-gray-800/50">
-            <div className="max-w-5xl mx-auto px-6">
+          <section className="py-12 md:py-20 border-t border-gray-800/50">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6">
               <div className="font-mono text-xs text-accent uppercase tracking-[3px] text-center mb-4">Categories of Sin</div>
               <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white text-center mb-16">The 7 Deadly Sins of Crypto</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {SINS.map((sin) => (
                   <div
                     key={sin.name}
-                    className={`bg-gradient-to-br ${sin.gradient} border ${sin.border} rounded-xl p-6 hover:shadow-xl ${sin.glow} hover:scale-[1.03] transition-all duration-300 cursor-pointer group`}
+                    className={`bg-gradient-to-br ${sin.gradient} border ${sin.border} rounded-xl p-4 sm:p-6 hover:shadow-xl ${sin.glow} hover:scale-[1.03] transition-all duration-300 cursor-pointer group`}
                     onClick={() => setTab('wall')}
                   >
                     <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${sin.gradient} border ${sin.border} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 overflow-hidden`}>
@@ -569,8 +570,8 @@ export default function Home() {
           </section>
 
           {/* How it works */}
-          <section className="py-20 border-t border-gray-800/50">
-            <div className="max-w-4xl mx-auto px-6">
+          <section className="py-12 md:py-20 border-t border-gray-800/50">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6">
               <div className="font-mono text-xs text-accent uppercase tracking-[3px] text-center mb-4">How It Works</div>
               <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white text-center mb-16">Confess → Get Judged → Get Baptized</h2>
               <div className="grid md:grid-cols-2 gap-6">
@@ -586,17 +587,17 @@ export default function Home() {
           </section>
 
           {/* Token */}
-          <section id="token" className="py-20 border-t border-gray-800/50">
-            <div className="max-w-3xl mx-auto px-6 text-center">
+          <section id="token" className="py-12 md:py-20 border-t border-gray-800/50">
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
               <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Baptism Economy</div>
               <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-6">🕊 Baptize & Be Saved</h2>
               <p className="text-gray-400 max-w-lg mx-auto mb-6">See a confession that hits too close to home? Baptize it. Send ETH directly to the Church of $CONFESS and your offering is recorded on-chain forever.</p>
               <p className="text-gray-500 max-w-lg mx-auto mb-10 text-sm">Top donors climb the Baptism Leaderboard. The bigger the offering, the faster the salvation. Father Degen is always watching.</p>
-              <div className="flex gap-4 justify-center flex-wrap">
-                <button onClick={() => setTab('wall')} className="inline-flex bg-accent text-white px-10 py-4 rounded-full font-bold text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
+              <div className="flex gap-3 sm:gap-4 justify-center flex-col sm:flex-row px-4 sm:px-0">
+                <button onClick={() => setTab('wall')} className="inline-flex justify-center bg-accent text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
                   ⛪ Start Confessing
                 </button>
-                <button onClick={() => setTab('leaderboard')} className="inline-flex border border-yellow-500/30 text-yellow-400 px-10 py-4 rounded-full font-bold text-base hover:bg-yellow-500/10 hover:-translate-y-0.5 transition-all">
+                <button onClick={() => setTab('leaderboard')} className="inline-flex justify-center border border-yellow-500/30 text-yellow-400 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:bg-yellow-500/10 hover:-translate-y-0.5 transition-all">
                   🕊 View Leaderboard
                 </button>
               </div>
@@ -607,7 +608,7 @@ export default function Home() {
 
       {/* ===== CONFESS ===== */}
       {tab === 'confess' && (
-        <section className="max-w-2xl mx-auto px-6 pt-32 pb-20">
+        <section className="max-w-2xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
           <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">The Confessional</div>
           <h2 className="font-display text-2xl text-white mb-2">⛪ The Confessional</h2>
           <p className="text-gray-500 text-sm mb-8">Father Degen is listening. Unburden your soul, sinner.</p>
@@ -692,7 +693,7 @@ export default function Home() {
             onNavigateConfess={() => setTab('confess')}
           />
         ) : (
-          <section className="max-w-3xl mx-auto px-6 pt-32 pb-20">
+          <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
             <div className="bg-card border border-gray-800 rounded-xl p-12 text-center">
               <div className="text-4xl mb-4">🔒</div>
               <p className="text-gray-500 mb-5">Connect your wallet to view your confessions.</p>
@@ -712,7 +713,7 @@ export default function Home() {
 
       {/* ===== CHAT ===== */}
       {tab === 'chat' && (
-        <section className="max-w-2xl mx-auto px-6 pt-32 pb-20">
+        <section className="max-w-2xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
           <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">Private Session</div>
           <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-16">Chat with Father Degen</h2>
           {isConnected ? <ChatPanel /> : (
@@ -726,7 +727,7 @@ export default function Home() {
 
       {/* ===== PROFILE ===== */}
       {tab === 'profile' && isConnected && address && (
-        <section className="max-w-3xl mx-auto px-6 pt-32 pb-20">
+        <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
           {profileLoading ? (
             <div className="flex flex-col items-center gap-3 py-20">
               <div className="w-10 h-10 border-[3px] border-gray-700 border-t-accent rounded-full animate-spin" />
@@ -734,13 +735,13 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <div className="bg-card border border-gray-800 rounded-xl p-10 mb-8">
-                <div className="flex items-center gap-6 max-md:flex-col max-md:text-center">
+              <div className="bg-card border border-gray-800 rounded-xl p-5 sm:p-8 md:p-10 mb-8">
+                <div className="flex items-center gap-4 sm:gap-6 max-sm:flex-col max-sm:text-center">
                   <div className="w-20 h-20 bg-accent rounded-full flex items-center justify-center text-4xl shrink-0">😈</div>
                   <div className="flex-1">
                     <div className="font-display text-2xl text-white mb-1">{profile?.username || trunc(address)}</div>
                     <div className="font-mono text-sm text-gray-500 mb-4">{trunc(address)}</div>
-                    <div className="flex gap-8 max-md:justify-center flex-wrap">
+                    <div className="flex gap-4 sm:gap-8 max-sm:justify-center flex-wrap">
                       <div className="text-center">
                         <div className="font-mono text-2xl text-accent">{profile?.sinScore || 0}</div>
                         <div className="text-[11px] text-gray-500 uppercase tracking-wider">Sin Score</div>
@@ -807,8 +808,8 @@ export default function Home() {
       )}
 
       {/* Footer */}
-      <footer className="py-12 px-6 text-center border-t border-gray-800">
-        <div className="flex justify-center gap-8 mb-6">
+      <footer className="py-8 md:py-12 px-4 sm:px-6 text-center border-t border-gray-800 pb-20 md:pb-12">
+        <div className="flex justify-center gap-4 sm:gap-8 mb-6 flex-wrap">
           {['𝕏 Twitter', 'Telegram', 'Flaunch'].map((l) => (
             <a key={l} href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{l}</a>
           ))}

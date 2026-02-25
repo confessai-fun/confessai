@@ -180,8 +180,8 @@ export default function ConfessionPage() {
     <div className="min-h-screen bg-bg">
       {/* Top bar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-bg/80 backdrop-blur-md border-b border-gray-800/50">
-        <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button onClick={() => router.back()} className="font-display text-lg text-white hover:text-accent transition-colors">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+          <button onClick={() => router.back()} className="font-display text-base sm:text-lg text-white hover:text-accent transition-colors">
             ← Back
           </button>
           <button
@@ -193,12 +193,12 @@ export default function ConfessionPage() {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-6 pt-28 pb-20">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 sm:pt-28 pb-20">
         {/* Sin category header */}
-        <div className={`bg-gradient-to-r ${sinStyle.gradient} border ${sinStyle.border} rounded-2xl p-8 mb-6`}>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-14 h-14 rounded-full bg-black/30 flex items-center justify-center overflow-hidden">
-              <img src={sinStyle.img} alt={c.sinCategory} width={36} height={36} />
+        <div className={`bg-gradient-to-r ${sinStyle.gradient} border ${sinStyle.border} rounded-xl sm:rounded-2xl p-5 sm:p-8 mb-6`}>
+          <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-black/30 flex items-center justify-center overflow-hidden shrink-0">
+              <img src={sinStyle.img} alt={c.sinCategory} width={28} height={28} className="sm:w-9 sm:h-9" />
             </div>
             <div>
               <div className="flex gap-2 mb-1">
@@ -219,7 +219,7 @@ export default function ConfessionPage() {
           </div>
 
           {/* The confession text */}
-          <p className="text-xl text-white leading-relaxed font-medium">
+          <p className="text-base sm:text-xl text-white leading-relaxed font-medium">
             &ldquo;{c.confessionText}&rdquo;
           </p>
         </div>
@@ -251,7 +251,7 @@ export default function ConfessionPage() {
         </div>
 
         {/* Actions bar */}
-        <div className="bg-card border border-gray-800 rounded-xl px-6 py-4 mb-6 flex items-center gap-6 flex-wrap">
+        <div className="bg-card border border-gray-800 rounded-xl px-4 sm:px-6 py-3 sm:py-4 mb-6 flex items-center gap-3 sm:gap-6 flex-wrap">
           <button
             onClick={handleLike}
             disabled={liking || !isConnected}
@@ -327,17 +327,17 @@ export default function ConfessionPage() {
             </div>
             <div className="divide-y divide-gray-800/50">
               {data.donations.map((d: any) => (
-                <div key={d.id} className="px-6 py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-yellow-400 text-sm">🕊</span>
-                    <span className="font-mono text-sm text-gray-300">
+                <div key={d.id} className="px-4 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span className="text-yellow-400 text-sm shrink-0">🕊</span>
+                    <span className="font-mono text-xs sm:text-sm text-gray-300 truncate">
                       {d.user?.username || trunc(d.user?.walletAddress)}
                     </span>
                     <span className="text-gray-600 text-xs">·</span>
                     <span className="text-xs text-gray-500">{timeAgo(d.createdAt)}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} ETH</span>
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <span className="font-mono text-xs sm:text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} ETH</span>
                     <a
                       href={`https://basescan.org/tx/${d.txHash}`}
                       target="_blank"
@@ -363,8 +363,8 @@ export default function ConfessionPage() {
 
           {/* Comment input */}
           {isConnected && (
-            <div className="px-6 py-4 border-b border-gray-800/50">
-              <div className="flex gap-3">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800/50">
+              <div className="flex gap-2 sm:gap-3">
                 <input
                   type="text"
                   placeholder="Drop a comment..."
@@ -372,7 +372,7 @@ export default function ConfessionPage() {
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleComment()}
                   maxLength={280}
-                  className="flex-1 bg-black/30 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:border-accent/50 outline-none"
+                  className="flex-1 min-w-0 bg-black/30 border border-gray-700 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-white placeholder-gray-600 focus:border-accent/50 outline-none"
                 />
                 <button
                   onClick={handleComment}

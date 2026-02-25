@@ -58,7 +58,7 @@ export default function ChatPanel() {
   };
 
   return (
-    <div className="bg-card border border-gray-800 rounded-xl overflow-hidden h-[600px] flex flex-col">
+    <div className="bg-card border border-gray-800 rounded-xl overflow-hidden h-[calc(100vh-220px)] sm:h-[calc(100vh-240px)] md:h-[600px] flex flex-col">
       {/* Header */}
       <div className="px-6 py-5 border-b border-gray-800 flex items-center gap-3">
         <div className="w-11 h-11 bg-accent rounded-full flex items-center justify-center text-xl">⛪</div>
@@ -106,9 +106,9 @@ export default function ChatPanel() {
       </div>
 
       {/* Input */}
-      <div className="px-6 py-4 border-t border-gray-800 flex gap-3">
+      <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-800 flex gap-2 sm:gap-3">
         <input
-          className="flex-1 bg-bg border border-gray-600 rounded-full px-5 py-3 text-sm text-gray-100 font-body focus:outline-none focus:border-accent"
+          className="flex-1 min-w-0 bg-bg border border-gray-600 rounded-full px-4 sm:px-5 py-2.5 sm:py-3 text-sm text-gray-100 font-body focus:outline-none focus:border-accent"
           placeholder="Speak to Father Degen..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -118,7 +118,7 @@ export default function ChatPanel() {
         <button
           onClick={send}
           disabled={sending || !input.trim()}
-          className="bg-accent text-white px-6 py-3 rounded-full font-semibold text-sm hover:shadow-lg hover:shadow-accent/20 transition-all disabled:opacity-40"
+          className="bg-accent text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-semibold text-sm hover:shadow-lg hover:shadow-accent/20 transition-all disabled:opacity-40 shrink-0"
         >
           Send
         </button>

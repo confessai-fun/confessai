@@ -10,7 +10,7 @@ interface SessionData {
 
 const sessionOptions = {
   password: process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long_for_dev',
-  cookieName: 'pump_confession_session',
+  cookieName: 'confessai_session',
   cookieOptions: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Build the same message that was signed on client
-    const message = `Sign in to PumpConfession.ai\n\nNonce: ${nonce}`;
+    const message = `Sign in to ConfessAI\n\nNonce: ${nonce}`;
 
     // Recover signer address from signature
     const recovered = ethers.verifyMessage(message, signature);

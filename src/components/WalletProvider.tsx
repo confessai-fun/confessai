@@ -87,7 +87,26 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => { window.ethereum?.removeListener?.('accountsChanged', handler); };
   }, []);
 
+  // Detect if on mobile without injected provider
+  const isMobileWithoutProvider = useCallback(() => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+    return isMobile && typeof window.ethereum === 'undefined';
+  }, []);
+
   const connect = useCallback(async () => {
+    // Mobile without MetaMask injected → deep link to MetaMask app
+    if (isMobileWithoutProvider()) {
+      // Get the current URL without protocol
+      const host = window.location.host;
+      const path = window.location.pathname;
+      const dappUrl = `${host}${path}`;
+      // Deep link: opens MetaMask app and loads our dApp in its in-app browser
+      window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
+      return;
+    }
+
     if (typeof window.ethereum === 'undefined') {
       window.open('https://metamask.io/download/', '_blank');
       return;
@@ -101,7 +120,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const nonceRes = await fetch('/api/auth?action=nonce');
       const { nonce, mac } = await nonceRes.json();
 
-      const message = `Sign in to PumpConfession.ai\n\nNonce: ${nonce}`;
+      const message = `Sign in to ConfessAI\n\nNonce: ${nonce}`;
 
       const signature: string = await window.ethereum.request({
         method: 'personal_sign',

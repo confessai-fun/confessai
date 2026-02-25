@@ -142,7 +142,7 @@ export default function OnChainViewer() {
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Header */}
       <header className="border-b border-white/5 backdrop-blur-xl bg-[#0a0a0a]/80 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2.5">
             <span className="text-[#ff2d2d] text-2xl">✝</span>
             <span className="font-bold text-lg">ConfessAI</span>
@@ -165,7 +165,7 @@ export default function OnChainViewer() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {/* Title */}
         <div className="mb-12">
           <div className="font-mono text-xs text-[#ff2d2d] uppercase tracking-[3px] mb-4">
@@ -355,7 +355,7 @@ export default function OnChainViewer() {
       </main>
 
       {/* Footer */}
-      <footer className="py-8 px-6 text-center border-t border-gray-800 mt-12">
+      <footer className="py-8 px-4 sm:px-6 text-center pb-20 md:pb-8 border-t border-gray-800 mt-12">
         <div className="flex justify-center gap-6 mb-4">
           <a href="/" className="text-sm text-gray-500 hover:text-white transition-colors">← Back to App</a>
           {CONTRACT_ADDRESS && (

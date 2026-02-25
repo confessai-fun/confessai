@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: #0a0a0a;
   overflow-x: hidden;
@@ -20,3 +25,15 @@ body::before {
 ::-webkit-scrollbar-track { background: #0a0a0a; }
 ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #ff2d2d; }
+
+/* Hide scrollbar on mobile for horizontal scroll areas */
+@media (max-width: 768px) {
+  .overflow-x-auto::-webkit-scrollbar { display: none; }
+  .overflow-x-auto { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* Mobile touch improvements */
+@media (max-width: 768px) {
+  button, a { -webkit-tap-highlight-color: transparent; }
+  input, textarea { font-size: 16px !important; /* Prevent zoom on iOS */ }
+}

@@ -1,7 +1,7 @@
-// Contract ABI for PumpConfession.sol
-// After deploying, update CONTRACT_ADDRESS below
+// Contract ABI for ConfessAI
+// After deploying V2, update CONTRACT_ADDRESS below
 
-export const CONTRACT_ADDRESS = process.env.CONFESSION_CONTRACT_ADDRESS || '';
+export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONFESSION_CONTRACT_ADDRESS || process.env.CONFESSION_CONTRACT_ADDRESS || '';
 
 export const CONFESSION_ABI = [
   {
@@ -38,6 +38,29 @@ export const CONFESSION_ABI = [
     type: 'function',
   },
   {
+    inputs: [
+      { name: '_from', type: 'uint256' },
+      { name: '_count', type: 'uint256' },
+    ],
+    name: 'getConfessions',
+    outputs: [
+      {
+        components: [
+          { name: 'sinner', type: 'address' },
+          { name: 'confessionText', type: 'string' },
+          { name: 'sinCategory', type: 'string' },
+          { name: 'sinLevel', type: 'string' },
+          { name: 'aiResponse', type: 'string' },
+          { name: 'timestamp', type: 'uint256' },
+        ],
+        name: '',
+        type: 'tuple[]',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
     inputs: [],
     name: 'totalConfessions',
     outputs: [{ name: '', type: 'uint256' }],
@@ -49,9 +72,11 @@ export const CONFESSION_ABI = [
     inputs: [
       { indexed: true, name: 'id', type: 'uint256' },
       { indexed: true, name: 'sinner', type: 'address' },
-      { name: 'sinCategory', type: 'string' },
-      { name: 'sinLevel', type: 'string' },
-      { name: 'timestamp', type: 'uint256' },
+      { indexed: false, name: 'confessionText', type: 'string' },
+      { indexed: false, name: 'sinCategory', type: 'string' },
+      { indexed: false, name: 'sinLevel', type: 'string' },
+      { indexed: false, name: 'aiResponse', type: 'string' },
+      { indexed: false, name: 'timestamp', type: 'uint256' },
     ],
     name: 'ConfessionPosted',
     type: 'event',

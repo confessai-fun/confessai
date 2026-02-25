@@ -142,7 +142,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
   };
 
   return (
-    <div id={`confession-${c.id}`} className="bg-card border border-gray-800 rounded-xl p-7 transition-all hover:border-gray-700">
+    <div id={`confession-${c.id}`} className="bg-card border border-gray-800 rounded-xl p-4 sm:p-5 md:p-7 transition-all hover:border-gray-700">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
@@ -232,12 +232,12 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
             <p className="text-xs text-gray-400 mb-4">
               Donate ETH to the Church to baptize this sinner. The bigger the offering, the greater the salvation. All donations are on-chain and visible to the congregation.
             </p>
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
               {[0.001, 0.005, 0.01, 0.05].map((amt) => (
                 <button
                   key={amt}
                   onClick={() => setDonateAmount(amt.toString())}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition-all whitespace-nowrap shrink-0 ${
                     donateAmount === amt.toString()
                       ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
                       : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
