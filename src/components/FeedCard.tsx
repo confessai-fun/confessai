@@ -3,12 +3,6 @@
 import { useState } from 'react';
 import { useWallet } from './WalletProvider';
 
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
 function timeAgo(d: string) {
   const sec = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
   if (sec < 60) return 'Just now';
