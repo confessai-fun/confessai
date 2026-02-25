@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getWalletFromReq } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
-  const wallet = await getWalletFromReq(req);
+  const wallet = await getWalletFromReq();
   if (!wallet) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const { confessionId } = await req.json();

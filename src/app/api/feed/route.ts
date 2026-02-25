@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getIronSession } from 'iron-session';
-
-interface SessionData {
-  walletAddress?: string;
-  nonce?: string;
-}
-
-const sessionOptions = {
-  password: process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long_for_dev',
-  cookieName: 'pump_confession_session',
-  cookieOptions: { secure: process.env.NODE_ENV === 'production', httpOnly: true, sameSite: 'lax' as const },
-};
+import { getWalletFromReq } from '@/lib/session';
 
 export async function GET(req: NextRequest) {
   try {
@@ -31,11 +20,10 @@ export async function GET(req: NextRequest) {
     // Get current user if authenticated
     let currentUserId: string | null = null;
     try {
-      const res = new NextResponse();
-      const session = await getIronSession<SessionData>(req, res, sessionOptions);
-      if (session.walletAddress) {
+      const wallet = await getWalletFromReq();
+      if (wallet) {
         const user = await prisma.user.findUnique({
-          where: { walletAddress: session.walletAddress },
+          where: { walletAddress: wallet },
         });
         if (user) currentUserId = user.id;
       }

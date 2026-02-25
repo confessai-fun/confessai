@@ -1,5 +1,5 @@
 import { getIronSession, IronSession } from 'iron-session';
-import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 export interface SessionData {
   walletAddress?: string;
@@ -17,16 +17,16 @@ export const sessionOptions = {
   },
 };
 
-// For route handlers — pass req directly
-export async function getSessionFromReq(req: NextRequest, res: NextResponse): Promise<IronSession<SessionData>> {
-  return getIronSession<SessionData>(req, res, sessionOptions);
+// Get session using cookies() — works in App Router on Vercel
+export async function getSession(): Promise<IronSession<SessionData>> {
+  const cookieStore = await cookies();
+  return getIronSession<SessionData>(cookieStore, sessionOptions);
 }
 
-// Quick helper to get wallet from request
-export async function getWalletFromReq(req: NextRequest): Promise<string | null> {
+// Quick helper to get wallet address from session
+export async function getWalletFromReq(): Promise<string | null> {
   try {
-    const res = new NextResponse();
-    const session = await getIronSession<SessionData>(req, res, sessionOptions);
+    const session = await getSession();
     return session.walletAddress || null;
   } catch {
     return null;

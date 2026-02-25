@@ -5,7 +5,7 @@ import { getWalletFromReq } from '@/lib/session';
 import { postConfessionOnChain } from '@/lib/onchain';
 
 export async function POST(req: NextRequest) {
-  const wallet = await getWalletFromReq(req);
+  const wallet = await getWalletFromReq();
   if (!wallet) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const { confession } = await req.json();

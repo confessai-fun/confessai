@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const wallet = await getWalletFromReq(req);
+  const wallet = await getWalletFromReq();
   if (!wallet) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const { confessionId, text } = await req.json();

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes } from 'crypto';
 import { ethers } from 'ethers';
+import { cookies } from 'next/headers';
 
 interface SessionData {
   walletAddress?: string;
@@ -15,53 +16,63 @@ const sessionOptions = {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax' as const,
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   },
 };
 
+// Helper: get session using cookies() for App Router
+async function getSession() {
+  const cookieStore = await cookies();
+  return getIronSession<SessionData>(cookieStore, sessionOptions);
+}
+
 // GET /api/auth — get nonce or check session
 export async function GET(req: NextRequest) {
-  const res = new NextResponse();
-  const session = await getIronSession<SessionData>(req, res, sessionOptions);
+  try {
+    const session = await getSession();
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action');
 
-  const { searchParams } = new URL(req.url);
-  const action = searchParams.get('action');
+    if (action === 'nonce') {
+      const nonce = randomBytes(16).toString('hex');
+      session.nonce = nonce;
+      await session.save();
+      return NextResponse.json({ nonce });
+    }
 
-  if (action === 'nonce') {
-    const nonce = randomBytes(16).toString('hex');
-    session.nonce = nonce;
-    await session.save();
-    return new NextResponse(JSON.stringify({ nonce }), {
-      headers: { 'Content-Type': 'application/json', ...Object.fromEntries(res.headers.entries()) },
+    return NextResponse.json({
+      authenticated: !!session.walletAddress,
+      walletAddress: session.walletAddress || null,
     });
+  } catch (err) {
+    console.error('Auth GET error:', err);
+    return NextResponse.json({ authenticated: false, walletAddress: null });
   }
-
-  return new NextResponse(
-    JSON.stringify({ authenticated: !!session.walletAddress, walletAddress: session.walletAddress || null }),
-    { headers: { 'Content-Type': 'application/json', ...Object.fromEntries(res.headers.entries()) } }
-  );
 }
 
 // POST /api/auth — verify signature
 export async function POST(req: NextRequest) {
-  const res = new NextResponse();
-  const session = await getIronSession<SessionData>(req, res, sessionOptions);
-
-  const { address, signature, nonce } = await req.json();
-
   try {
+    const session = await getSession();
+    const { address, signature, nonce } = await req.json();
+
+    console.log('[Auth] Verifying:', { address: address?.slice(0, 10), nonce: nonce?.slice(0, 8), sessionNonce: session.nonce?.slice(0, 8) });
+
     // Verify nonce matches
     if (!session.nonce || session.nonce !== nonce) {
-      return NextResponse.json({ error: 'Invalid nonce' }, { status: 401 });
+      console.error('[Auth] Nonce mismatch — session:', session.nonce, 'client:', nonce);
+      return NextResponse.json({ error: 'Invalid nonce. Please try again.' }, { status: 401 });
     }
 
     // Build the same message that was signed on client
-    const message = `Sign in to confessai.fun\n\nNonce: ${nonce}`;
+    const message = `Sign in to PumpConfession.ai\n\nNonce: ${nonce}`;
 
     // Recover signer address from signature
     const recovered = ethers.verifyMessage(message, signature);
 
     // Compare addresses (case-insensitive)
     if (recovered.toLowerCase() !== address.toLowerCase()) {
+      console.error('[Auth] Address mismatch — recovered:', recovered, 'claimed:', address);
       return NextResponse.json({ error: 'Signature mismatch' }, { status: 401 });
     }
 
@@ -69,22 +80,24 @@ export async function POST(req: NextRequest) {
     session.nonce = undefined;
     await session.save();
 
-    return new NextResponse(
-      JSON.stringify({ authenticated: true, walletAddress: session.walletAddress }),
-      { headers: { 'Content-Type': 'application/json', ...Object.fromEntries(res.headers.entries()) } }
-    );
+    return NextResponse.json({
+      authenticated: true,
+      walletAddress: session.walletAddress,
+    });
   } catch (err) {
-    console.error('Auth verify error:', err);
-    return NextResponse.json({ error: 'Verification failed' }, { status: 401 });
+    console.error('Auth POST error:', err);
+    return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
   }
 }
 
 // DELETE /api/auth — logout
 export async function DELETE(req: NextRequest) {
-  const res = new NextResponse();
-  const session = await getIronSession<SessionData>(req, res, sessionOptions);
-  session.destroy();
-  return new NextResponse(JSON.stringify({ authenticated: false }), {
-    headers: { 'Content-Type': 'application/json', ...Object.fromEntries(res.headers.entries()) },
-  });
+  try {
+    const session = await getSession();
+    session.destroy();
+    return NextResponse.json({ authenticated: false });
+  } catch (err) {
+    console.error('Auth DELETE error:', err);
+    return NextResponse.json({ authenticated: false });
+  }
 }
