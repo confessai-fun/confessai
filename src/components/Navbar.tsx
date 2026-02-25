@@ -11,10 +11,12 @@ interface NavProps {
 export default function Navbar({ activeTab, onTabChange }: NavProps) {
   const { isConnected } = useWallet();
 
-  const tabs = [
+  const tabs: { id: string; label: string; href?: string }[] = [
     { id: 'confess', label: 'Confess' },
     { id: 'wall', label: 'Wall' },
+    { id: 'leaderboard', label: '🕊 Baptism' },
     { id: 'chat', label: 'Chat' },
+    { id: 'onchain', label: '⛓ On-Chain', href: '/onchain' },
     ...(isConnected
       ? [
           { id: 'mysins', label: 'My Sins' },
@@ -34,17 +36,27 @@ export default function Navbar({ activeTab, onTabChange }: NavProps) {
       </div>
 
       <div className="flex items-center gap-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`hidden md:block text-sm font-medium uppercase tracking-wider transition-colors ${
-              activeTab === tab.id ? 'text-accent' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {tabs.map((tab) =>
+          tab.href ? (
+            <a
+              key={tab.id}
+              href={tab.href}
+              className="hidden md:block text-sm font-medium uppercase tracking-wider text-gray-400 hover:text-white transition-colors"
+            >
+              {tab.label}
+            </a>
+          ) : (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`hidden md:block text-sm font-medium uppercase tracking-wider transition-colors ${
+                activeTab === tab.id ? 'text-accent' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          )
+        )}
         <ConnectButton />
       </div>
     </nav>

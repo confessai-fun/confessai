@@ -9,20 +9,19 @@ import ChatPanel from '@/components/ChatPanel';
 import { useToast } from '@/components/Toast';
 
 const SINS = [
-  { icon: '/greed_icon.png', name: 'Greed', desc: '"I knew it was a rug but the APY was 40,000%"' },
-  { icon: '/fomo_icon.png', name: 'FOMO', desc: '"A guy on Twitter said it\'s going to $1 so I sold my car"' },
-  { icon: '/wrath_icon.png', name: 'Wrath', desc: '"I mass reported the dev\'s Twitter after getting rugged"' },
-  { icon: '/sloth_icon.png', name: 'Sloth', desc: '"Too lazy to revoke approvals. Got drained 3 times."' },
-  { icon: '/pride_icon.png', name: 'Pride', desc: '"I told everyone I sold the top. I absolutely did not."' },
-  { icon: '/lust_icon.png', name: 'Lust', desc: '"I bought a token because the dev was attractive"' },
-  { icon: '/cope_icon.png', name: 'Cope', desc: '"It\'s not a loss if I don\'t sell" - me, down 97%' },
+  { icon: '/greed_icon.png', name: 'Greed', desc: '"I knew it was a rug but the APY was 40,000%"', gradient: 'from-yellow-500/20 to-amber-600/20', border: 'border-yellow-500/30', glow: 'shadow-yellow-500/10' },
+  { icon: '/fomo_icon.png', name: 'FOMO', desc: '"A guy on Twitter said it\'s going to $1 so I sold my car"', gradient: 'from-blue-500/20 to-cyan-500/20', border: 'border-blue-500/30', glow: 'shadow-blue-500/10' },
+  { icon: '/wrath_icon.png', name: 'Wrath', desc: '"I mass reported the dev\'s Twitter after getting rugged"', gradient: 'from-red-500/20 to-orange-500/20', border: 'border-red-500/30', glow: 'shadow-red-500/10' },
+  { icon: '/sloth_icon.png', name: 'Sloth', desc: '"Too lazy to revoke approvals. Got drained 3 times."', gradient: 'from-green-500/20 to-emerald-500/20', border: 'border-green-500/30', glow: 'shadow-green-500/10' },
+  { icon: '/pride_icon.png', name: 'Pride', desc: '"I told everyone I sold the top. I absolutely did not."', gradient: 'from-purple-500/20 to-violet-500/20', border: 'border-purple-500/30', glow: 'shadow-purple-500/10' },
+  { icon: '/cope_icon.png', name: 'Cope', desc: '"It\'s not a loss if I don\'t sell" — me, down 97%', gradient: 'from-teal-500/20 to-cyan-500/20', border: 'border-teal-500/30', glow: 'shadow-teal-500/10' },
 ];
 
 const STEPS = [
-  { num: '01', title: 'Connect Your Wallet', desc: 'Sign in with Ethereum. Anonymous by default.' },
-  { num: '02', title: 'Confess Your Sins', desc: 'Tell Father Degen about your worst trades and degen moments.' },
-  { num: '03', title: 'Receive Salvation', desc: 'AI priest analyzes your sin and prescribes penance.' },
-  { num: '04', title: 'Join the Wall of Sin', desc: 'Community reacts, comments, and shares.' },
+  { num: '01', title: 'Connect Wallet', desc: 'Sign in with Ethereum. Anonymous. No KYC. Just sins.' },
+  { num: '02', title: 'Confess Your Sins', desc: 'Tell Father Degen your worst trades, biggest copes, and degen moments.' },
+  { num: '03', title: 'Get Judged On-Chain', desc: 'AI priest classifies your sin, assigns severity, and delivers penance. Stored forever on Base.' },
+  { num: '04', title: 'Baptize the Sinners', desc: 'Send ETH to baptize any confession. Top donors earn their place on the Baptism Leaderboard.' },
 ];
 
 const SORT_OPTIONS = [
@@ -32,9 +31,22 @@ const SORT_OPTIONS = [
 ];
 
 const SIN_CATEGORIES = ['Greed', 'FOMO', 'Wrath', 'Sloth', 'Pride', 'Lust', 'Cope'];
-const SIN_EMOJIS: Record<string, string> = {
-  Greed: '🤑', FOMO: '😱', Wrath: '😤', Sloth: '🦥', Pride: '👑', Lust: '😍', Cope: '🧘',
+const SIN_ICONS: Record<string, string> = {
+  Greed: '/greed_icon.png',
+  FOMO: '/fomo_icon.png',
+  Wrath: '/wrath_icon.png',
+  Sloth: '/sloth_icon.png',
+  Pride: '/pride_icon.png',
+  Lust: '/lust_icon.png',
+  Cope: '/cope_icon.png',
 };
+
+// Helper component for sin icon
+function SinIcon({ name, size = 16 }: { name: string; size?: number }) {
+  const src = SIN_ICONS[name];
+  if (!src) return <span>⛪</span>;
+  return <img src={src} alt={name} width={size} height={size} className="inline-block" style={{ width: size, height: size }} />;
+}
 
 function trunc(addr: string) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
 
@@ -125,7 +137,7 @@ function FeedSection({
                   : 'bg-card border border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500'
               }`}
             >
-              {SIN_EMOJIS[cat]} {cat}
+              <SinIcon name={cat} size={14} /> {cat}
               {count > 0 && <span className="ml-1 opacity-60">({count})</span>}
             </button>
           );
@@ -168,6 +180,236 @@ function FeedSection({
   );
 }
 
+// My Baptisms Component
+function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/my-baptisms')
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const shareCard = (d: any) => {
+    const sinEmoji = { Greed: '💰', FOMO: '📉', Wrath: '🔥', Sloth: '💤', Pride: '👑', Lust: '💋', Cope: '🧠' }[d.confession?.sinCategory as string] || '⛪';
+    const text = `🕊 I baptized a sinner on @ConfessAI ⛪\n\n${sinEmoji} Sin: ${d.confession?.sinCategory} — ${d.confession?.sinLevel}\n💰 Offering: ${d.amount.toFixed(4)} ETH\n⛓ Tx: basescan.org/tx/${d.txHash}\n\nConfess & get baptized → confessai.fun\n\n$CONFESS`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  return (
+    <section className="max-w-3xl mx-auto px-6 pt-32 pb-20">
+      <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Your Offerings</div>
+      <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-8">My Baptisms</h2>
+
+      {loading ? (
+        <div className="flex flex-col items-center gap-3 py-20">
+          <div className="w-10 h-10 border-[3px] border-gray-700 border-t-yellow-400 rounded-full animate-spin" />
+          <span className="text-sm text-gray-500">Loading baptisms...</span>
+        </div>
+      ) : (
+        <>
+          {/* Summary */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
+              <div className="font-mono text-3xl text-yellow-400 mb-1">{(data?.totalDonated || 0).toFixed(4)}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider">Total ETH Offered</div>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
+              <div className="font-mono text-3xl text-yellow-400 mb-1">{data?.donationCount || 0}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider">Total Baptisms</div>
+            </div>
+          </div>
+
+          {/* Baptism Cards */}
+          {(data?.donations?.length || 0) === 0 ? (
+            <div className="bg-card border border-gray-800 rounded-xl p-12 text-center">
+              <div className="text-4xl mb-4">🕊</div>
+              <p className="text-gray-500 mb-4">You haven't baptized any sinners yet.</p>
+              <button
+                onClick={onNavigateConfess}
+                className="bg-gradient-to-r from-yellow-500 to-amber-500 text-black px-6 py-2.5 rounded-full text-sm font-bold hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
+              >
+                Go to Wall of Sin →
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {data.donations.map((d: any) => (
+                <div key={d.id} className="bg-card border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-all">
+                  {/* Baptism header */}
+                  <div className="bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border-b border-yellow-500/10 px-6 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-400">🕊</span>
+                      <span className="font-mono text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} ETH</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <a
+                        href={`https://basescan.org/tx/${d.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[11px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full hover:bg-green-500/20 transition-colors"
+                      >
+                        ⛓ {d.txHash.slice(0, 10)}...{d.txHash.slice(-6)}
+                      </a>
+                      <span className="text-[11px] text-gray-500">
+                        {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Confession preview */}
+                  <div className="px-6 py-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex gap-2">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold uppercase bg-accent/15 text-accent border border-accent/30">
+                          {d.confession?.sinCategory}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold uppercase bg-white/5 text-gray-400 border border-gray-600">
+                          {d.confession?.sinLevel}
+                        </span>
+                      </div>
+                      <a
+                        href={`/confession/${d.confessionId || d.confession?.id}`}
+                        className="text-[11px] text-accent hover:text-white transition-colors font-mono"
+                      >
+                        View Confession →
+                      </a>
+                    </div>
+                    <a
+                      href={`/confession/${d.confessionId || d.confession?.id}`}
+                      className="block text-sm text-gray-300 leading-relaxed mb-4 cursor-pointer hover:text-white transition-colors"
+                    >
+                      &ldquo;{(d.confession?.confessionText || '').slice(0, 200)}{(d.confession?.confessionText || '').length > 200 ? '...' : ''}&rdquo;
+                    </a>
+
+                    {/* Actions */}
+                    <div className="flex gap-3 flex-wrap">
+                      <button
+                        onClick={() => shareCard(d)}
+                        className="inline-flex items-center gap-2 border border-yellow-500/30 text-yellow-400 px-4 py-2 rounded-full text-xs font-semibold hover:bg-yellow-500/10 transition-all"
+                      >
+                        ↗ Share Baptism Card on 𝕏
+                      </button>
+                      <a
+                        href={`https://basescan.org/tx/${d.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 border border-gray-700 text-gray-400 px-4 py-2 rounded-full text-xs font-semibold hover:border-gray-500 hover:text-gray-300 transition-all"
+                      >
+                        ⛓ View on BaseScan
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+// Leaderboard Component
+function LeaderboardTab() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/leaderboard')
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <section className="max-w-3xl mx-auto px-6 pt-32 pb-20">
+      <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Church Treasury</div>
+      <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-8">Baptism Leaderboard</h2>
+
+      {loading ? (
+        <div className="flex flex-col items-center gap-3 py-20">
+          <div className="w-10 h-10 border-[3px] border-gray-700 border-t-yellow-400 rounded-full animate-spin" />
+          <span className="text-sm text-gray-500">Loading leaderboard...</span>
+        </div>
+      ) : (
+        <>
+          {/* Treasury Stats */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
+              <div className="font-mono text-3xl text-yellow-400 mb-1">{(data?.treasury?.totalETH || 0).toFixed(4)}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider">Total ETH Donated</div>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
+              <div className="font-mono text-3xl text-yellow-400 mb-1">{data?.treasury?.totalDonations || 0}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider">Total Baptisms</div>
+            </div>
+          </div>
+
+          {/* Top Donors */}
+          <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-8">
+            <div className="px-6 py-4 border-b border-gray-800">
+              <div className="font-mono text-xs text-yellow-400 uppercase tracking-widest">🕊 Top Donors</div>
+            </div>
+            {(data?.topDonors?.length || 0) === 0 ? (
+              <div className="p-8 text-center text-gray-500 text-sm">No donations yet. Be the first to baptize a sinner.</div>
+            ) : (
+              <div className="divide-y divide-gray-800">
+                {data.topDonors.map((d: any, i: number) => (
+                  <div key={d.id} className="px-6 py-4 flex items-center gap-4">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      i === 0 ? 'bg-yellow-500 text-black' : i === 1 ? 'bg-gray-400 text-black' : i === 2 ? 'bg-amber-700 text-white' : 'bg-gray-800 text-gray-400'
+                    }`}>
+                      {i + 1}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-white text-sm font-medium">{d.username || trunc(d.walletAddress)}</div>
+                      <div className="text-xs text-gray-500">{d.donationCount} baptism{d.donationCount !== 1 ? 's' : ''} • 🔥 {d.sinScore} sin score</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-sm text-yellow-400">{d.totalDonated.toFixed(4)} ETH</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent Donations */}
+          <div className="bg-card border border-gray-800 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-800">
+              <div className="font-mono text-xs text-gray-400 uppercase tracking-widest">Recent Baptisms</div>
+            </div>
+            {(data?.recentDonations?.length || 0) === 0 ? (
+              <div className="p-8 text-center text-gray-500 text-sm">No recent baptisms.</div>
+            ) : (
+              <div className="divide-y divide-gray-800">
+                {data.recentDonations.map((d: any) => (
+                  <a key={d.id} href={`/confession/${d.confessionId || d.confession?.id}`} className="px-6 py-3 flex items-center gap-3 hover:bg-white/[0.02] transition-colors cursor-pointer">
+                    <span className="text-yellow-400">🕊</span>
+                    <div className="flex-1 text-sm">
+                      <span className="text-white">{d.user?.username || trunc(d.user?.walletAddress || '')}</span>
+                      <span className="text-gray-500"> baptized </span>
+                      <span className="text-gray-400">"{(d.confession?.confessionText || '').slice(0, 40)}..."</span>
+                    </div>
+                    <div className="font-mono text-xs text-yellow-400">{d.amount.toFixed(4)} ETH</div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function Home() {
   const { address, isConnected } = useWallet();
   const toast = useToast();
@@ -178,19 +420,40 @@ export default function Home() {
   const [salvation, setSalvation] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(false);
-  const [stats, setStats] = useState({ c: 0, s: 0 });
+  const [stats, setStats] = useState({ confessions: 0, sinners: 0, onChain: 0 });
+  const [displayStats, setDisplayStats] = useState({ confessions: 0, sinners: 0, onChain: 0 });
   const salvationRef = useRef<HTMLDivElement>(null);
 
-  // Animate hero stats
+  // Fetch real stats from API
   useEffect(() => {
-    const dur = 2000, start = performance.now();
+    fetch('/api/stats')
+      .then((r) => r.json())
+      .then((d) => {
+        setStats({
+          confessions: d.totalConfessions || 0,
+          sinners: d.totalSinners || 0,
+          onChain: d.onChainCount || 0,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  // Animate counter when stats change
+  useEffect(() => {
+    if (stats.confessions === 0 && stats.sinners === 0) return;
+    const dur = 1800, start = performance.now();
     const anim = (now: number) => {
-      const p = Math.min((now - start) / dur, 1), e = 1 - Math.pow(1 - p, 3);
-      setStats({ c: Math.floor(1247 * e), s: Math.floor(842 * e) });
+      const p = Math.min((now - start) / dur, 1);
+      const e = 1 - Math.pow(1 - p, 3); // ease-out cubic
+      setDisplayStats({
+        confessions: Math.floor(stats.confessions * e),
+        sinners: Math.floor(stats.sinners * e),
+        onChain: Math.floor(stats.onChain * e),
+      });
       if (p < 1) requestAnimationFrame(anim);
     };
     requestAnimationFrame(anim);
-  }, []);
+  }, [stats]);
 
   useEffect(() => {
     if (isConnected && tab === 'profile') {
@@ -221,7 +484,7 @@ export default function Home() {
 
   const shareToTwitter = () => {
     if (!salvation) return;
-    const t = `⛪ I confessed my crypto sins at confessai.fun\n\nSin: ${salvation.sinCategory}\nSeverity: ${salvation.sinLevel}\n\nhttps://confessai.fun\n\n$CONF`;
+    const t = `⛪ I confessed my crypto sins on ConfessAI\n\nSin: ${salvation.sinCategory}\nSeverity: ${salvation.sinLevel}\n\nhttps://confessai.fun\n\n$CONFESS`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}`, '_blank');
   };
 
@@ -235,35 +498,49 @@ export default function Home() {
           {/* Hero */}
           <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-32 pb-20 relative">
             <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle,rgba(255,45,45,0.15),transparent_70%)] pointer-events-none opacity-40" />
-            {/* <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
-              <span className="w-2 h-2 bg-accent rounded-full animate-blink" /> Live on Base
-            </div> */}
+            <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
+              <span className="w-2 h-2 bg-accent rounded-full animate-blink" /> Live on Base · confessai.fun
+            </div>
             <h1 className="font-display text-[clamp(48px,8vw,96px)] leading-none text-white mb-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
               CONFESS YOUR<br /><span className="text-accent">CRYPTO SINS</span>
             </h1>
             <p className="text-[clamp(16px,2vw,20px)] text-gray-400 max-w-xl mb-12 animate-fade-up" style={{ animationDelay: '0.2s' }}>
-              The anonymous confessional for degens. An AI priest judges your worst trades, assigns your penance, and grants salvation. Maybe.
+              The on-chain confessional for degens. An AI priest judges your worst trades, assigns your penance, and lets the community baptize your sins with ETH. Every confession is permanent. No edits. No deletes. No mercy.
             </p>
             <div className="flex gap-4 flex-wrap justify-center animate-fade-up" style={{ animationDelay: '0.3s' }}>
               <button onClick={() => setTab('confess')} className="bg-accent text-white px-10 py-4 rounded-full font-bold text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
                 ⛪ Enter the Confessional
               </button>
-              <a href="#token" className="border border-gray-600 text-gray-300 px-10 py-4 rounded-full font-semibold text-base hover:border-gray-400 hover:text-white hover:-translate-y-0.5 transition-all">
-                Buy $CONF
-              </a>
+              <button onClick={() => setTab('leaderboard')} className="border border-gray-600 text-gray-300 px-10 py-4 rounded-full font-semibold text-base hover:border-gray-400 hover:text-white hover:-translate-y-0.5 transition-all">
+                🕊 Baptism Leaderboard
+              </button>
             </div>
           </section>
 
           {/* Stats */}
           <section className="py-20 border-t border-gray-800/50">
-            <div className="flex justify-center gap-20 max-w-4xl mx-auto px-6 max-md:flex-col max-md:gap-10 max-md:items-center">
-              <div className="text-center">
-                <div className="font-mono text-5xl text-white mb-2">{stats.c.toLocaleString()}</div>
-                <div className="text-sm text-gray-500 uppercase tracking-wider">Confessions Recorded</div>
+            <div className="flex justify-center gap-16 max-w-5xl mx-auto px-6 max-md:flex-col max-md:gap-10 max-md:items-center">
+              <div className="text-center group">
+                <div className="font-mono text-6xl font-bold text-white mb-2 tabular-nums tracking-tight">
+                  {displayStats.confessions.toLocaleString()}
+                </div>
+                <div className="text-sm text-gray-500 uppercase tracking-wider">Confessions</div>
               </div>
-              <div className="text-center">
-                <div className="font-mono text-5xl text-accent mb-2">{stats.s.toLocaleString()}</div>
+              <div className="hidden md:block w-px h-20 bg-gradient-to-b from-transparent via-gray-700 to-transparent" />
+              <div className="text-center group">
+                <div className="font-mono text-6xl font-bold text-accent mb-2 tabular-nums tracking-tight">
+                  {displayStats.sinners.toLocaleString()}
+                </div>
                 <div className="text-sm text-gray-500 uppercase tracking-wider">Sinners Judged</div>
+              </div>
+              <div className="hidden md:block w-px h-20 bg-gradient-to-b from-transparent via-gray-700 to-transparent" />
+              <div className="text-center group">
+                <div className="font-mono text-6xl font-bold mb-2 tabular-nums tracking-tight text-green-400">
+                  {displayStats.onChain.toLocaleString()}
+                </div>
+                <div className="text-sm text-gray-500 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full" /> On-Chain
+                </div>
               </div>
             </div>
           </section>
@@ -272,13 +549,19 @@ export default function Home() {
           <section className="py-20 border-t border-gray-800/50">
             <div className="max-w-5xl mx-auto px-6">
               <div className="font-mono text-xs text-accent uppercase tracking-[3px] text-center mb-4">Categories of Sin</div>
-              <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white text-center mb-16">The Seven Deadly Sins of Crypto</h2>
+              <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white text-center mb-16">The 7 Deadly Sins of Crypto</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {SINS.map((sin) => (
-                  <div key={sin.name} className="bg-card border border-gray-800 rounded-xl p-6 hover:border-accent/30 transition-all group cursor-pointer" onClick={() => { setTab('wall'); }}>
-                    <img src={sin.icon} className="text-3xl mb-3 group-hover:scale-110 transition-transform" alt={sin.name} />
+                  <div
+                    key={sin.name}
+                    className={`bg-gradient-to-br ${sin.gradient} border ${sin.border} rounded-xl p-6 hover:shadow-xl ${sin.glow} hover:scale-[1.03] transition-all duration-300 cursor-pointer group`}
+                    onClick={() => setTab('wall')}
+                  >
+                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${sin.gradient} border ${sin.border} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 overflow-hidden`}>
+                      <img src={sin.icon} alt={sin.name} width={32} height={32} />
+                    </div>
                     <div className="font-display text-base text-white mb-2">{sin.name}</div>
-                    <p className="text-xs text-gray-500">{sin.desc}</p>
+                    <p className="text-xs text-gray-400 leading-relaxed">{sin.desc}</p>
                   </div>
                 ))}
               </div>
@@ -289,7 +572,7 @@ export default function Home() {
           <section className="py-20 border-t border-gray-800/50">
             <div className="max-w-4xl mx-auto px-6">
               <div className="font-mono text-xs text-accent uppercase tracking-[3px] text-center mb-4">How It Works</div>
-              <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white text-center mb-16">Path to Salvation</h2>
+              <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white text-center mb-16">Confess → Get Judged → Get Baptized</h2>
               <div className="grid md:grid-cols-2 gap-6">
                 {STEPS.map((step) => (
                   <div key={step.num} className="bg-card border border-gray-800 rounded-xl p-8 relative">
@@ -305,12 +588,18 @@ export default function Home() {
           {/* Token */}
           <section id="token" className="py-20 border-t border-gray-800/50">
             <div className="max-w-3xl mx-auto px-6 text-center">
-              <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">The Token</div>
-              <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-6">$CONF</h2>
-              <p className="text-gray-400 max-w-lg mx-auto mb-10">The currency of sin. Every confession is recorded on Base. Your sins are immutable, your penance is eternal.</p>
-              <a href="#" className="inline-flex bg-accent text-white px-10 py-4 rounded-full font-bold text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
-                Buy on Flaunch →
-              </a>
+              <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Baptism Economy</div>
+              <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-6">🕊 Baptize & Be Saved</h2>
+              <p className="text-gray-400 max-w-lg mx-auto mb-6">See a confession that hits too close to home? Baptize it. Send ETH directly to the Church of $CONFESS and your offering is recorded on-chain forever.</p>
+              <p className="text-gray-500 max-w-lg mx-auto mb-10 text-sm">Top donors climb the Baptism Leaderboard. The bigger the offering, the faster the salvation. Father Degen is always watching.</p>
+              <div className="flex gap-4 justify-center flex-wrap">
+                <button onClick={() => setTab('wall')} className="inline-flex bg-accent text-white px-10 py-4 rounded-full font-bold text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
+                  ⛪ Start Confessing
+                </button>
+                <button onClick={() => setTab('leaderboard')} className="inline-flex border border-yellow-500/30 text-yellow-400 px-10 py-4 rounded-full font-bold text-base hover:bg-yellow-500/10 hover:-translate-y-0.5 transition-all">
+                  🕊 View Leaderboard
+                </button>
+              </div>
             </div>
           </section>
         </>
@@ -321,7 +610,7 @@ export default function Home() {
         <section className="max-w-2xl mx-auto px-6 pt-32 pb-20">
           <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">The Confessional</div>
           <h2 className="font-display text-2xl text-white mb-2">⛪ The Confessional</h2>
-          <p className="text-gray-500 text-sm mb-8">Father Degen is listening. What have you done?</p>
+          <p className="text-gray-500 text-sm mb-8">Father Degen is listening. Unburden your soul, sinner.</p>
 
           {isConnected ? (
             <>
@@ -361,7 +650,7 @@ export default function Home() {
                 <div className="w-11 h-11 bg-accent rounded-full flex items-center justify-center text-xl">⛪</div>
                 <div>
                   <div className="font-display text-base text-white">Father Degen</div>
-                  <div className="text-xs text-gray-500">AI Priest · Church of $CONF</div>
+                  <div className="text-xs text-gray-500">AI Priest · Church of $CONFESS</div>
                 </div>
               </div>
               <div className="flex gap-2 mb-5">
@@ -413,6 +702,14 @@ export default function Home() {
         )
       )}
 
+      {/* ===== MY BAPTISMS ===== */}
+      {tab === 'mybaptisms' && isConnected && (
+        <MyBaptismsTab onNavigateConfess={() => setTab('wall')} />
+      )}
+
+      {/* ===== LEADERBOARD ===== */}
+      {tab === 'leaderboard' && <LeaderboardTab />}
+
       {/* ===== CHAT ===== */}
       {tab === 'chat' && (
         <section className="max-w-2xl mx-auto px-6 pt-32 pb-20">
@@ -443,7 +740,7 @@ export default function Home() {
                   <div className="flex-1">
                     <div className="font-display text-2xl text-white mb-1">{profile?.username || trunc(address)}</div>
                     <div className="font-mono text-sm text-gray-500 mb-4">{trunc(address)}</div>
-                    <div className="flex gap-8 max-md:justify-center">
+                    <div className="flex gap-8 max-md:justify-center flex-wrap">
                       <div className="text-center">
                         <div className="font-mono text-2xl text-accent">{profile?.sinScore || 0}</div>
                         <div className="text-[11px] text-gray-500 uppercase tracking-wider">Sin Score</div>
@@ -451,6 +748,14 @@ export default function Home() {
                       <div className="text-center">
                         <div className="font-mono text-2xl text-white">{profile?.totalConfessions || 0}</div>
                         <div className="text-[11px] text-gray-500 uppercase tracking-wider">Confessions</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-mono text-2xl text-yellow-400">{(profile?.totalDonated || 0).toFixed(4)}</div>
+                        <div className="text-[11px] text-gray-500 uppercase tracking-wider">ETH Donated</div>
+                      </div>
+                      <div className="text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setTab('mybaptisms')}>
+                        <div className="font-mono text-2xl text-yellow-400">{profile?.donationCount || 0}</div>
+                        <div className="text-[11px] text-gray-500 uppercase tracking-wider underline decoration-dotted">Baptisms →</div>
                       </div>
                     </div>
                   </div>
@@ -507,8 +812,9 @@ export default function Home() {
           {['𝕏 Twitter', 'Telegram', 'Flaunch'].map((l) => (
             <a key={l} href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{l}</a>
           ))}
+          <a href="/onchain" className="text-sm text-green-500 hover:text-green-400 transition-colors">⛓ On-Chain Viewer</a>
         </div>
-        <p className="text-xs text-gray-600">© 2026 Confessai.fun - All sins recorded on-chain. No salvation guaranteed.</p>
+        <p className="text-xs text-gray-600">© 2026 ConfessAI — All sins recorded on Base. No edits. No deletes. No salvation guaranteed. confessai.fun</p>
       </footer>
     </>
   );

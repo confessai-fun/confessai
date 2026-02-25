@@ -13,12 +13,15 @@ model User {
   username         String?
   sinScore         Int          @default(0) @map("sin_score")
   totalConfessions Int          @default(0) @map("total_confessions")
+  totalDonated     Float        @default(0) @map("total_donated")
+  donationCount    Int          @default(0) @map("donation_count")
   createdAt        DateTime     @default(now()) @map("created_at")
 
   confessions      Confession[]
   comments         Comment[]
   likes            Like[]
   chatMessages     ChatMessage[]
+  donations        Donation[]
 
   @@map("users")
 }
@@ -33,18 +36,38 @@ model Confession {
   penance        String
   likesCount     Int       @default(0) @map("likes_count")
   commentsCount  Int       @default(0) @map("comments_count")
+  totalDonated   Float     @default(0) @map("total_donated")
+  donationCount  Int       @default(0) @map("donation_count")
   txHash         String?   @map("tx_hash")
   onChainId      Int?      @map("on_chain_id")
-  chainStatus    String    @default("pending") @map("chain_status") // pending, confirmed, failed
+  chainStatus    String    @default("pending") @map("chain_status")
   createdAt      DateTime  @default(now()) @map("created_at")
 
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   comments       Comment[]
   likes          Like[]
+  donations      Donation[]
 
   @@index([userId])
   @@index([createdAt(sort: Desc)])
   @@map("confessions")
+}
+
+model Donation {
+  id             String     @id @default(cuid())
+  confessionId   String     @map("confession_id")
+  userId         String     @map("user_id")
+  amount         Float                              // ETH amount
+  txHash         String     @map("tx_hash")
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  confession     Confession @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([confessionId])
+  @@index([userId])
+  @@index([amount(sort: Desc)])
+  @@map("donations")
 }
 
 model Comment {
@@ -79,7 +102,7 @@ model Like {
 model ChatMessage {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
-  role      String   // 'user' | 'assistant'
+  role      String
   content   String
   createdAt DateTime @default(now()) @map("created_at")
 

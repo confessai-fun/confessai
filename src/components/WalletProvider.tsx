@@ -48,12 +48,26 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const checkUsername = async (wallet: string) => {
     try {
+      // Check localStorage cache first
+      const cachedName = typeof window !== 'undefined' ? localStorage.getItem(`username_${wallet}`) : null;
+      if (cachedName) {
+        setUsernameState(cachedName);
+        setShowUsernameModal(false);
+      }
+
       const res = await fetch('/api/profile');
       const data = await res.json();
       if (data.user?.username) {
         setUsernameState(data.user.username);
-      } else {
-        setShowUsernameModal(true);
+        setShowUsernameModal(false);
+        // Cache it
+        if (typeof window !== 'undefined') localStorage.setItem(`username_${wallet}`, data.user.username);
+      } else if (!cachedName) {
+        // Only show modal if user hasn't dismissed it before and no cached name
+        const dismissed = typeof window !== 'undefined' && localStorage.getItem(`username_dismissed_${wallet}`);
+        if (!dismissed) {
+          setShowUsernameModal(true);
+        }
       }
     } catch {}
   };
@@ -135,15 +149,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (data.user?.username) {
         setUsernameState(data.user.username);
         setShowUsernameModal(false);
+        if (address) {
+          localStorage.setItem(`username_${address}`, data.user.username);
+          localStorage.removeItem(`username_dismissed_${address}`);
+        }
       }
     } catch (err) {
       console.error('Set username error:', err);
     }
-  }, []);
+  }, [address]);
 
   const dismissUsernameModal = useCallback(() => {
     setShowUsernameModal(false);
-  }, []);
+    if (address) {
+      localStorage.setItem(`username_dismissed_${address}`, 'true');
+    }
+  }, [address]);
 
   return (
     <WalletContext.Provider value={{
