@@ -1102,7 +1102,7 @@ export default function Home() {
           {[
             { label: '𝕏 Twitter', href: 'https://x.com/ConfessAiFun' },
             { label: 'Telegram', href: 'https://t.me/confessaifun' },
-            { label: 'Trade', href: process.env.NEXT_PUBLIC_TRADE_LINK || '#' },
+            { label: 'Trade', href: process.env.TRADE_LINK || '#' },
           ].map((link) => (
             <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-white transition-colors">{link.label}</a>
           ))}
