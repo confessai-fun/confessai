@@ -1099,8 +1099,12 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-8 md:py-12 px-4 sm:px-6 text-center border-t border-gray-800 pb-20 md:pb-12">
         <div className="flex justify-center gap-4 sm:gap-8 mb-6 flex-wrap">
-          {[{'𝕏 Twitter': 'https://x.com/ConfessAiFun', 'Telegram': 'https://t.me/confessaifun', 'Trade': process.env.TRADE_LINK}].map((l) => (
-            <a key={Object.keys(l)[0]} href={Object.values(l)[0]} className="text-sm text-gray-500 hover:text-white transition-colors">{Object.keys(l)[0]}</a>
+          {[
+            { label: '𝕏 Twitter', href: 'https://x.com/ConfessAiFun' },
+            { label: 'Telegram', href: 'https://t.me/confessaifun' },
+            { label: 'Trade', href: process.env.NEXT_PUBLIC_TRADE_LINK || '#' },
+          ].map((link) => (
+            <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-500 hover:text-white transition-colors">{link.label}</a>
           ))}
           <button onClick={() => setTab('pool')} className="text-sm text-purple-400 hover:text-purple-300 transition-colors">🏊 Weekly Pool</button>
           <a href="/onchain" className="text-sm text-green-500 hover:text-green-400 transition-colors">⛓ On-Chain Viewer</a>
