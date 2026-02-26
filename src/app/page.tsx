@@ -206,7 +206,7 @@ function FeedSection({
               onClick={onNavigateConfess}
               className="bg-accent text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:shadow-lg hover:shadow-accent/20 transition-all"
             >
-              ⛪ Enter the Confessional
+              ⛪ Enter the Church
             </button>
           )}
         </div>
@@ -727,18 +727,18 @@ export default function Home() {
         <>
           <section className="min-h-[85vh] md:min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-20 md:pt-32 pb-16 md:pb-20 relative">
             <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle,rgba(255,45,45,0.15),transparent_70%)] pointer-events-none opacity-40" />
-            <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
+            {/* <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
               <span className="w-2 h-2 bg-accent rounded-full animate-blink" /> Live on Base · confessai.fun
-            </div>
+            </div> */}
             <h1 className="font-display text-[clamp(48px,8vw,96px)] leading-none text-white mb-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
               CONFESS YOUR<br /><span className="text-accent">CRYPTO SINS</span>
             </h1>
             <p className="text-[clamp(16px,2vw,20px)] text-gray-400 max-w-xl mb-12 animate-fade-up" style={{ animationDelay: '0.2s' }}>
-              The on-chain confessional for degens. An AI priest judges your worst trades, assigns your penance, and lets the community baptize your sins with ETH. Every confession is permanent. No edits. No deletes. No mercy.
+              The on-chain church for degens. An AI priest judges your worst trades, assigns your penance, and lets the community baptize your sins with ETH. Every confession is permanent. No edits. No deletes. No mercy.
             </p>
             <div className="flex gap-3 sm:gap-4 flex-col sm:flex-row justify-center animate-fade-up w-full sm:w-auto px-4 sm:px-0" style={{ animationDelay: '0.3s' }}>
               <button onClick={() => setTab('confess')} className="bg-accent text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
-                ⛪ Enter the Confessional
+                ⛪ Enter the Church
               </button>
               <button onClick={() => setTab('leaderboard')} className="border border-gray-600 text-gray-300 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base hover:border-gray-400 hover:text-white hover:-translate-y-0.5 transition-all">
                 🕊 Baptism Leaderboard
@@ -836,8 +836,8 @@ export default function Home() {
       {/* ===== CONFESS ===== */}
       {tab === 'confess' && (
         <section className="max-w-2xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
-          <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">The Confessional</div>
-          <h2 className="font-display text-2xl text-white mb-2">⛪ The Confessional</h2>
+          <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">The Church</div>
+          <h2 className="font-display text-2xl text-white mb-2">⛪ The Church</h2>
           <p className="text-gray-500 text-sm mb-8">Father Degen is listening. Unburden your soul, sinner.</p>
 
           {/* Show if confessing a dare */}
@@ -877,7 +877,7 @@ export default function Home() {
             </>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-5">Connect your wallet to enter the confessional.<br />Your sins await judgment.</p>
+              <p className="text-gray-500 mb-5">Connect your wallet to enter the church.<br />Your sins await judgment.</p>
               <ConnectButton />
             </div>
           )}

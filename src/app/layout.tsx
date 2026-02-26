@@ -6,7 +6,7 @@ import UsernameModal from '@/components/UsernameModal';
 
 export const metadata: Metadata = {
   title: 'ConfessAI — Confess Your Crypto Sins On-Chain',
-  description: 'The on-chain confessional for degens. AI priest judges your sins. Baptize sinners with ETH. Every confession permanent on Base.',
+  description: 'The on-chain church for degens. AI priest judges your sins. Baptize sinners with ETH. Every confession permanent on Base.',
   openGraph: {
     title: 'ConfessAI — Confess Your Crypto Sins On-Chain',
     description: 'AI priest judges your crypto sins on-chain. Baptize sinners with ETH on Base.',
