@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from './WalletProvider';
+import DareCreate from './DareCreate';
 
 function timeAgo(d: string) {
   const sec = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
@@ -38,7 +39,21 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
   const [donated, setDonated] = useState(c.totalDonated || 0);
   const [donateCount, setDonateCount] = useState(c.donationCount || 0);
 
+  // Dare state (shows after successful baptism)
+  const [showDare, setShowDare] = useState(false);
+  const [lastBaptismTxHash, setLastBaptismTxHash] = useState('');
+  const [lastBaptismAmount, setLastBaptismAmount] = useState(0);
+  const [baptismStreak, setBaptismStreak] = useState<number | null>(null);
+
+  // Dares on this confession
+  const [dares, setDares] = useState<any[]>([]);
+  const [daresLoaded, setDaresLoaded] = useState(false);
+
   const displayName = c.user?.username || (c.user?.walletAddress ? trunc(c.user.walletAddress) : 'Anon');
+  const isSelfConfession = c.user?.walletAddress?.toLowerCase() === address?.toLowerCase();
+
+  // Dare count from feed data or loaded dares
+  const dareCount = c._count?.dares ?? c.dareCount ?? dares.length;
 
   const loadComments = async () => {
     setCommentsLoading(true);
@@ -50,8 +65,20 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
     setCommentsLoading(false);
   };
 
+  const loadDares = async () => {
+    try {
+      const res = await fetch(`/api/dare?type=confession&confessionId=${c.id}`);
+      const data = await res.json();
+      setDares(data.dares || []);
+      setDaresLoaded(true);
+    } catch {}
+  };
+
   const toggleComments = () => {
-    if (!showComments) loadComments();
+    if (!showComments) {
+      loadComments();
+      if (!daresLoaded) loadDares();
+    }
     setShowComments(!showComments);
   };
 
@@ -88,12 +115,27 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
     setPosting(false);
   };
 
-  // Check and switch to Base network
+  const handleDareRespond = async (dareId: string, action: 'accept' | 'decline') => {
+    try {
+      const res = await fetch('/api/dare', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dareId, action }),
+      });
+      if (res.ok && action === 'accept') {
+        const dare = dares.find(d => d.id === dareId);
+        if (dare) {
+          window.location.href = `/?confess&dare=${encodeURIComponent(dare.dareText)}&from=${c.id}#confess`;
+        }
+      }
+      loadDares();
+    } catch {}
+  };
+
   const ensureBaseNetwork = async (): Promise<boolean> => {
     try {
       const chainId = await window.ethereum!.request({ method: 'eth_chainId' });
-      if (chainId === '0x2105') return true; // Already on Base (8453)
-      
+      if (chainId === '0x2105') return true;
       try {
         await window.ethereum!.request({
           method: 'wallet_switchEthereumChain',
@@ -101,7 +143,6 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         });
         return true;
       } catch (switchErr: any) {
-        // Chain not added, add it
         if (switchErr.code === 4902) {
           await window.ethereum!.request({
             method: 'wallet_addEthereumChain',
@@ -131,8 +172,9 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
     }
 
     setDonating(true);
+    setShowDare(false);
+
     try {
-      // Ensure we're on Base network
       const onBase = await ensureBaseNetwork();
       if (!onBase) {
         alert('Please switch to Base network in MetaMask to baptize.');
@@ -142,27 +184,15 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
 
       const halfWei = '0x' + BigInt(Math.floor((amount / 2) * 1e18)).toString(16);
 
-      // Look up confession owner wallet
       const confRes = await fetch(`/api/confession/${c.id}`);
       const confData = await confRes.json();
       const ownerWallet = confData?.confession?.user?.walletAddress;
       const isSelfBaptize = !ownerWallet || ownerWallet.toLowerCase() === address?.toLowerCase();
 
-      // Debug: log wallets to console
-      console.log('[Baptize Debug]', {
-        donor: address,
-        ownerWallet,
-        churchWallet: CHURCH_WALLET,
-        isSelfBaptize,
-        confessionUserId: confData?.confession?.user?.id,
-        confessionUserName: confData?.confession?.user?.username,
-      });
-
       let txHashChurch = '';
       let txHashOwner = '';
 
       if (isSelfBaptize) {
-        // Self-baptizing: send full amount to church in 1 tx
         const fullWei = '0x' + BigInt(Math.floor(amount * 1e18)).toString(16);
         txHashChurch = await window.ethereum!.request({
           method: 'eth_sendTransaction',
@@ -170,51 +200,55 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         });
         txHashOwner = txHashChurch;
       } else {
-        // Show user the split
-        console.log(`[Baptize] Sending ${amount/2} ETH to Church: ${CHURCH_WALLET}`);
-        console.log(`[Baptize] Sending ${amount/2} ETH to Owner: ${ownerWallet}`);
-
-        // Tx 1: 50% to Church
         txHashChurch = await window.ethereum!.request({
           method: 'eth_sendTransaction',
           params: [{ from: address, to: CHURCH_WALLET, value: halfWei, chainId: '0x2105' }],
         });
 
-        // Re-verify chain before Tx 2
         await ensureBaseNetwork();
 
-        // Tx 2: 50% to confession owner
         try {
-          console.log(`[Baptize] Sending Tx2 to owner: ${ownerWallet}`);
           txHashOwner = await window.ethereum!.request({
             method: 'eth_sendTransaction',
             params: [{ from: address, to: ownerWallet, value: halfWei, chainId: '0x2105' }],
           });
-          console.log(`[Baptize] Tx2 hash: ${txHashOwner}`);
         } catch (tx2Err: any) {
-          // If user rejected tx2, still record church donation
           console.warn('Owner tx failed/rejected, recording church-only donation');
           txHashOwner = '';
         }
       }
 
-      // Record in DB (even if only church tx succeeded)
-      await fetch('/api/donate', {
+      const donateRes = await fetch('/api/donate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           confessionId: c.id,
-          amount: txHashOwner ? amount : amount / 2, // half if owner tx failed
+          amount: txHashOwner ? amount : amount / 2,
           txHashChurch,
           txHashOwner: txHashOwner || txHashChurch,
         }),
       });
 
+      const donateData = await donateRes.json();
+
       setDonated(donated + (txHashOwner ? amount : amount / 2));
       setDonateCount(donateCount + 1);
       setDonateAmount('');
       setShowBaptize(false);
-      onRefresh?.();
+
+      if (donateData.streak) {
+        setBaptismStreak(donateData.streak);
+      }
+
+      // Show dare option (only if not self-baptizing)
+      if (!isSelfBaptize) {
+        setLastBaptismTxHash(txHashChurch);
+        setLastBaptismAmount(txHashOwner ? amount : amount / 2);
+        setShowDare(true);
+        // DON'T call onRefresh here - it will remount and lose dare state
+      } else {
+        onRefresh?.();
+      }
     } catch (err: any) {
       if (err?.code !== 4001) {
         console.error('Baptize error:', err);
@@ -257,6 +291,18 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         </div>
       </div>
 
+      {/* Dare origin link - if this confession was made from a dare */}
+      {c.confessionText?.startsWith('[DARE]') && c.dareFromConfessionId && (
+        <a
+          href={`/confession/${c.dareFromConfessionId}`}
+          className="flex items-center gap-2 mb-3 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg text-xs hover:bg-purple-500/15 transition-colors"
+        >
+          <span className="text-purple-400">⚡</span>
+          <span className="text-purple-300">Dare confession — responding to this post</span>
+          <span className="text-purple-400 ml-auto">→</span>
+        </a>
+      )}
+
       {/* Confession */}
       <a href={`/confession/${c.id}`} className="block text-gray-100 mb-4 leading-relaxed hover:text-white transition-colors">{c.confessionText}</a>
 
@@ -269,7 +315,6 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         <span className="px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold uppercase tracking-wider bg-white/5 text-gray-300 border border-gray-600">
           {c.sinLevel}
         </span>
-        {/* Donation badge */}
         {donated > 0 && (
           <span className="px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold uppercase tracking-wider bg-yellow-500/10 text-yellow-400 border border-yellow-500/30">
             🕊 {donated.toFixed(4)} ETH baptized
@@ -294,11 +339,13 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         </button>
         <button onClick={toggleComments} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors">
           💬 {c.commentsCount}
+          {dareCount > 0 && (
+            <span className="text-purple-400 ml-0.5">· ⚡{dareCount}</span>
+          )}
         </button>
         <button onClick={share} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors">
           ↗ Share
         </button>
-        {/* Baptize button */}
         {isConnected && (
           <button
             onClick={() => setShowBaptize(!showBaptize)}
@@ -363,26 +410,158 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         </div>
       )}
 
-      {/* Comments */}
+      {/* ===== POST-BAPTISM: Streak feedback + Dare option ===== */}
+      {showDare && (
+        <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-400 font-bold text-sm">✅ Baptism Complete!</p>
+                <p className="text-gray-400 text-xs mt-1">
+                  {lastBaptismAmount.toFixed(4)} ETH sent — 50% to sinner, 50% to Church
+                </p>
+              </div>
+              {baptismStreak && baptismStreak > 1 && (
+                <div className={`text-center px-3 py-1.5 rounded-full ${
+                  baptismStreak >= 7 ? 'bg-red-500/20 text-red-400 animate-pulse' :
+                  baptismStreak >= 3 ? 'bg-orange-500/20 text-orange-400' :
+                  'bg-yellow-500/20 text-yellow-400'
+                }`}>
+                  <span className="text-sm font-bold">🔥 {baptismStreak}d streak</span>
+                  <span className="text-[10px] block">
+                    {baptismStreak >= 7 ? '2x multiplier!' : baptismStreak >= 3 ? '1.5x multiplier!' : ''}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {!isSelfConfession && (
+            <DareCreate
+              confessionId={c.id}
+              txHash={lastBaptismTxHash}
+              amount={lastBaptismAmount}
+              onDareCreated={() => {
+                loadDares();
+                // Defer refresh
+                setTimeout(() => onRefresh?.(), 1500);
+              }}
+            />
+          )}
+
+          <button
+            onClick={() => { setShowDare(false); onRefresh?.(); }}
+            className="w-full text-center text-xs text-gray-600 hover:text-gray-400 transition-colors py-1"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Comments + Dares section (unified) */}
       {showComments && (
         <div className="mt-4 pt-4 border-t border-gray-800">
+
+          {/* === DARES on this confession === */}
+          {dares.length > 0 && (
+            <div className="mb-4">
+              <div className="font-mono text-[10px] text-purple-400 uppercase tracking-widest mb-2">
+                ⚡ Dares ({dares.length})
+              </div>
+              <div className="space-y-2">
+                {dares.map((dare: any) => (
+                  <div
+                    key={dare.id}
+                    className={`border rounded-lg p-3 ${
+                      dare.status === 'accepted' ? 'bg-green-500/5 border-green-500/20' :
+                      dare.status === 'declined' ? 'bg-red-500/5 border-red-500/20 opacity-60' :
+                      dare.status === 'expired' ? 'border-gray-800 opacity-40' :
+                      'bg-purple-500/5 border-purple-500/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-400 text-xs">⚡</span>
+                        <a href={`/user/${dare.fromUser?.id}`} className="font-mono text-xs text-purple-300 hover:text-purple-200 transition-colors">
+                          {dare.fromUser?.username || trunc(dare.fromUser?.walletAddress || '')}
+                        </a>
+                        <span className="text-gray-600 text-[10px]">·</span>
+                        <span className="text-[10px] text-gray-500">{timeAgo(dare.createdAt)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-400 text-xs font-mono font-bold">⟠ {dare.amount}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono uppercase ${
+                          dare.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                          dare.status === 'accepted' ? 'bg-green-500/20 text-green-400' :
+                          dare.status === 'declined' ? 'bg-red-500/20 text-red-400' :
+                          'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {dare.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-white text-xs pl-5">&ldquo;{dare.dareText}&rdquo;</p>
+
+                    {/* Accept/Decline for the dare recipient */}
+                    {dare.status === 'pending' && dare.toUser?.walletAddress?.toLowerCase() === address?.toLowerCase() && (
+                      <div className="flex gap-2 pl-5 mt-2">
+                        <button
+                          onClick={() => handleDareRespond(dare.id, 'accept')}
+                          className="bg-green-600 hover:bg-green-700 text-white text-[10px] py-1 px-3 rounded-lg font-medium transition"
+                        >
+                          ✅ Accept & Confess
+                        </button>
+                        <button
+                          onClick={() => handleDareRespond(dare.id, 'decline')}
+                          className="bg-red-600/20 hover:bg-red-600/30 text-red-400 text-[10px] py-1 px-3 rounded-lg font-medium transition"
+                        >
+                          ❌ Decline
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Link to resulting confession if dare was accepted */}
+                    {dare.status === 'accepted' && dare.resultConfessionId && (
+                      <a
+                        href={`/confession/${dare.resultConfessionId}`}
+                        className="inline-flex items-center gap-1 text-[10px] text-green-400 hover:text-green-300 pl-5 mt-1 transition-colors"
+                      >
+                        → View dare confession
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* === COMMENTS === */}
           {commentsLoading ? (
             <div className="flex items-center gap-2 py-4">
               <div className="w-4 h-4 border-2 border-gray-600 border-t-accent rounded-full animate-spin" />
-              <span className="text-xs text-gray-500">Loading comments...</span>
+              <span className="text-xs text-gray-500">Loading...</span>
             </div>
-          ) : comments.length === 0 ? (
-            <p className="text-xs text-gray-600 py-2">No comments yet.</p>
-          ) : (
-            comments.map((cm: any) => (
-              <div key={cm.id} className="py-3">
-                <a href={`/user/${cm.user?.id}`} className="font-mono text-[11px] text-gray-500 hover:text-accent transition-colors mb-1 inline-block">
-                  {cm.user?.username || (cm.user?.walletAddress ? trunc(cm.user.walletAddress) : 'Anon')}
-                </a>
-                <div className="text-sm text-gray-300">{cm.commentText}</div>
-              </div>
-            ))
-          )}
+          ) : comments.length === 0 && dares.length === 0 ? (
+            <p className="text-xs text-gray-600 py-2">No comments or dares yet.</p>
+          ) : comments.length > 0 ? (
+            <>
+              {dares.length > 0 && (
+                <div className="font-mono text-[10px] text-gray-500 uppercase tracking-widest mb-2">
+                  💬 Comments ({comments.length})
+                </div>
+              )}
+              {comments.map((cm: any) => (
+                <div key={cm.id} className="py-3">
+                  <a href={`/user/${cm.user?.id}`} className="font-mono text-[11px] text-gray-500 hover:text-accent transition-colors mb-1 inline-block">
+                    {cm.user?.username || (cm.user?.walletAddress ? trunc(cm.user.walletAddress) : 'Anon')}
+                  </a>
+                  <div className="text-sm text-gray-300">{cm.commentText}</div>
+                </div>
+              ))}
+            </>
+          ) : null}
+
           {isConnected && (
             <div className="flex gap-2 mt-3">
               <input

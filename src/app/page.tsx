@@ -7,8 +7,11 @@ import Navbar from '@/components/Navbar';
 import FeedCard from '@/components/FeedCard';
 import ChatPanel from '@/components/ChatPanel';
 import { useToast } from '@/components/Toast';
+import BaptismPool from '@/components/BaptismPool';
+import StreakBadge from '@/components/StreakBadge';
+import MyDares from '@/components/MyDares';
 
-const VALID_TABS = ['home', 'confess', 'wall', 'leaderboard', 'chat', 'mysins', 'mybaptisms', 'profile'];
+const VALID_TABS = ['home', 'confess', 'wall', 'leaderboard', 'chat', 'mysins', 'mybaptisms', 'profile', 'pool'];
 
 const SINS = [
   { icon: '/greed_icon.png', name: 'Greed', desc: '"I knew it was a rug but the APY was 40,000%"', gradient: 'from-yellow-500/20 to-amber-600/20', border: 'border-yellow-500/30', glow: 'shadow-yellow-500/10' },
@@ -44,7 +47,6 @@ const SIN_ICONS: Record<string, string> = {
   Cope: '/cope_icon.png',
 };
 
-// Helper component for sin icon
 function SinIcon({ name, size = 16 }: { name: string; size?: number }) {
   const src = SIN_ICONS[name];
   if (!src) return <span>⛪</span>;
@@ -53,7 +55,10 @@ function SinIcon({ name, size = 16 }: { name: string; size?: number }) {
 
 function trunc(addr: string) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
 
-// Reusable Feed Section with filters and sort
+// ============================================================
+// REPLACE the existing FeedSection function in page.tsx with this
+// ============================================================
+
 function FeedSection({
   title,
   subtitle,
@@ -69,35 +74,70 @@ function FeedSection({
 }) {
   const [confessions, setConfessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [sort, setSort] = useState('recent');
   const [category, setCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ name: string; count: number }[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const loaderRef = useRef<HTMLDivElement>(null);
 
-  const loadFeed = useCallback(async () => {
-    setLoading(true);
+  const loadFeed = useCallback(async (cursor?: string) => {
+    if (!cursor) setLoading(true);
+    else setLoadingMore(true);
+
     try {
-      const params = new URLSearchParams({ limit: '30', sort });
+      const params = new URLSearchParams({ limit: '10', sort });
       if (category) params.set('category', category);
       if (isMine) params.set('mine', 'true');
+      if (cursor) params.set('cursor', cursor);
 
       const res = await fetch(`/api/feed?${params}`);
       const data = await res.json();
-      setConfessions(data.confessions || []);
-      setCategories(data.categories || []);
-      setTotalCount(data.totalCount || 0);
+
+      if (cursor) {
+        // Append to existing
+        setConfessions((prev) => [...prev, ...(data.confessions || [])]);
+      } else {
+        // Fresh load
+        setConfessions(data.confessions || []);
+        setCategories(data.categories || []);
+        setTotalCount(data.totalCount || 0);
+      }
+      setNextCursor(data.nextCursor || null);
     } catch {}
+
     setLoading(false);
+    setLoadingMore(false);
   }, [sort, category, isMine]);
 
-  useEffect(() => { loadFeed(); }, [loadFeed]);
+  // Reset and load on sort/category change
+  useEffect(() => {
+    setConfessions([]);
+    setNextCursor(null);
+    loadFeed();
+  }, [loadFeed]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!loaderRef.current || !nextCursor) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && nextCursor && !loadingMore) {
+          loadFeed(nextCursor);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [nextCursor, loadingMore, loadFeed]);
 
   return (
     <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
       <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">{subtitle}</div>
       <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-8">{title}</h2>
 
-      {/* Sort Tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {SORT_OPTIONS.map((s) => (
           <button
@@ -114,7 +154,6 @@ function FeedSection({
         ))}
       </div>
 
-      {/* Category Filter Pills */}
       <div className="flex gap-2 mb-8 flex-wrap">
         <button
           onClick={() => setCategory(null)}
@@ -147,7 +186,6 @@ function FeedSection({
         })}
       </div>
 
-      {/* Feed */}
       {loading ? (
         <div className="flex flex-col items-center gap-3 py-20">
           <div className="w-10 h-10 border-[3px] border-gray-700 border-t-accent rounded-full animate-spin" />
@@ -175,31 +213,91 @@ function FeedSection({
       ) : (
         <div className="flex flex-col gap-4">
           {confessions.map((c) => (
-            <FeedCard key={c.id} confession={c} onRefresh={loadFeed} />
+            <FeedCard key={c.id} confession={c} onRefresh={() => loadFeed()} />
           ))}
+
+          {/* Infinite scroll trigger */}
+          {nextCursor && (
+            <div ref={loaderRef} className="flex justify-center py-6">
+              {loadingMore ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 border-[2px] border-gray-700 border-t-accent rounded-full animate-spin" />
+                  <span className="text-sm text-gray-500">Loading more sins...</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => loadFeed(nextCursor)}
+                  className="text-sm text-gray-500 hover:text-accent transition-colors font-mono"
+                >
+                  Load more ↓
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </section>
   );
 }
 
-// My Baptisms Component
-function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void }) {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+// ============================================================
+// REPLACE the existing MyBaptismsTab function in page.tsx with this
+// ============================================================
 
-  useEffect(() => {
-    setLoading(true);
-    fetch('/api/my-baptisms')
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void }) {
+  const [donations, setDonations] = useState<any[]>([]);
+  const [totalDonated, setTotalDonated] = useState(0);
+  const [donationCount, setDonationCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  const loadBaptisms = useCallback(async (cursor?: string) => {
+    if (!cursor) setLoading(true);
+    else setLoadingMore(true);
+
+    try {
+      const params = new URLSearchParams({ limit: '10' });
+      if (cursor) params.set('cursor', cursor);
+
+      const res = await fetch(`/api/my-baptisms?${params}`);
+      const data = await res.json();
+
+      if (cursor) {
+        setDonations((prev) => [...prev, ...(data.donations || [])]);
+      } else {
+        setDonations(data.donations || []);
+        setTotalDonated(data.totalDonated || 0);
+        setDonationCount(data.donationCount || 0);
+      }
+      setNextCursor(data.nextCursor || null);
+    } catch {}
+
+    setLoading(false);
+    setLoadingMore(false);
   }, []);
+
+  useEffect(() => { loadBaptisms(); }, [loadBaptisms]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    if (!loaderRef.current || !nextCursor) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && nextCursor && !loadingMore) {
+          loadBaptisms(nextCursor);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [nextCursor, loadingMore, loadBaptisms]);
 
   const shareCard = (d: any) => {
     const sinEmoji = { Greed: '💰', FOMO: '📉', Wrath: '🔥', Sloth: '💤', Pride: '👑', Lust: '💋', Cope: '🧠' }[d.confession?.sinCategory as string] || '⛪';
-    const text = `🕊 I baptized a sinner on @ConfessAI ⛪\n\n${sinEmoji} Sin: ${d.confession?.sinCategory} — ${d.confession?.sinLevel}\n💰 Offering: ${d.amount.toFixed(4)} ETH\n⛓ Tx: basescan.org/tx/${d.txHash}\n\nConfess & get baptized → confessai.fun\n\n$CONFESS`;
+    const text = `🔊 I baptized a sinner on @ConfessAI ⛪\n\n${sinEmoji} Sin: ${d.confession?.sinCategory} — ${d.confession?.sinLevel}\n💰 Offering: ${d.amount.toFixed(4)} ETH\n⛓ Tx: basescan.org/tx/${d.txHash}\n\nConfess & get baptized → confessai.fun\n\n$CONFESS`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -215,23 +313,26 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
         </div>
       ) : (
         <>
-          {/* Summary */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
-              <div className="font-mono text-3xl text-yellow-400 mb-1">{(data?.totalDonated || 0).toFixed(4)}</div>
+              <div className="font-mono text-3xl text-yellow-400 mb-1">{totalDonated.toFixed(4)}</div>
               <div className="text-xs text-gray-500 uppercase tracking-wider">Total ETH Offered</div>
             </div>
             <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
-              <div className="font-mono text-3xl text-yellow-400 mb-1">{data?.donationCount || 0}</div>
+              <div className="font-mono text-3xl text-yellow-400 mb-1">{donationCount}</div>
               <div className="text-xs text-gray-500 uppercase tracking-wider">Total Baptisms</div>
             </div>
           </div>
 
-          {/* Baptism Cards */}
-          {(data?.donations?.length || 0) === 0 ? (
+          {/* Streak Widget */}
+          <div className="mb-8">
+            <StreakBadge />
+          </div>
+
+          {donations.length === 0 ? (
             <div className="bg-card border border-gray-800 rounded-xl p-12 text-center">
-              <div className="text-4xl mb-4">🕊</div>
-              <p className="text-gray-500 mb-4">You haven't baptized any sinners yet.</p>
+              <div className="text-4xl mb-4">🔊</div>
+              <p className="text-gray-500 mb-4">You haven&apos;t baptized any sinners yet.</p>
               <button
                 onClick={onNavigateConfess}
                 className="bg-gradient-to-r from-yellow-500 to-amber-500 text-black px-6 py-2.5 rounded-full text-sm font-bold hover:shadow-lg hover:shadow-yellow-500/20 transition-all"
@@ -241,12 +342,11 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {data.donations.map((d: any) => (
+              {donations.map((d: any) => (
                 <div key={d.id} className="bg-card border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-all">
-                  {/* Baptism header */}
                   <div className="bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border-b border-yellow-500/10 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-yellow-400">🕊</span>
+                      <span className="text-yellow-400">🔊</span>
                       <span className="font-mono text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} ETH</span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -264,7 +364,6 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
                     </div>
                   </div>
 
-                  {/* Confession preview */}
                   <div className="px-4 sm:px-6 py-4 sm:py-5">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex gap-2">
@@ -289,7 +388,6 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
                       &ldquo;{(d.confession?.confessionText || '').slice(0, 200)}{(d.confession?.confessionText || '').length > 200 ? '...' : ''}&rdquo;
                     </a>
 
-                    {/* Actions */}
                     <div className="flex gap-3 flex-wrap">
                       <button
                         onClick={() => shareCard(d)}
@@ -309,6 +407,25 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
                   </div>
                 </div>
               ))}
+
+              {/* Infinite scroll trigger */}
+              {nextCursor && (
+                <div ref={loaderRef} className="flex justify-center py-6">
+                  {loadingMore ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 border-[2px] border-gray-700 border-t-yellow-400 rounded-full animate-spin" />
+                      <span className="text-sm text-gray-500">Loading more baptisms...</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => loadBaptisms(nextCursor)}
+                      className="text-sm text-gray-500 hover:text-yellow-400 transition-colors font-mono"
+                    >
+                      Load more ↓
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </>
@@ -317,7 +434,6 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
   );
 }
 
-// Leaderboard Component
 function LeaderboardTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -352,7 +468,7 @@ function LeaderboardTab() {
   );
 
   return (
-    <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20">
+    <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-8">
       <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Church Treasury</div>
       <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-8">Baptism Leaderboard</h2>
 
@@ -363,7 +479,6 @@ function LeaderboardTab() {
         </div>
       ) : (
         <>
-          {/* Treasury Stats */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-4 sm:p-6 text-center">
               <div className="font-mono text-2xl sm:text-3xl text-yellow-400 mb-1">{(data?.treasury?.totalETH || 0).toFixed(4)}</div>
@@ -375,7 +490,6 @@ function LeaderboardTab() {
             </div>
           </div>
 
-          {/* Leaderboard Tabs */}
           <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
             {[
               { id: 'overall' as const, label: '🏆 Overall' },
@@ -396,7 +510,6 @@ function LeaderboardTab() {
             ))}
           </div>
 
-          {/* Overall Leaderboard */}
           {lbTab === 'overall' && (
             <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-8">
               <div className="px-4 sm:px-6 py-4 border-b border-gray-800">
@@ -420,7 +533,6 @@ function LeaderboardTab() {
             </div>
           )}
 
-          {/* Top Donors */}
           {lbTab === 'donors' && (
             <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-8">
               <div className="px-4 sm:px-6 py-4 border-b border-gray-800">
@@ -442,7 +554,6 @@ function LeaderboardTab() {
             </div>
           )}
 
-          {/* Top Earners */}
           {lbTab === 'earners' && (
             <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-8">
               <div className="px-4 sm:px-6 py-4 border-b border-gray-800">
@@ -465,7 +576,6 @@ function LeaderboardTab() {
             </div>
           )}
 
-          {/* Recent Donations */}
           <div className="bg-card border border-gray-800 rounded-xl overflow-hidden">
             <div className="px-4 sm:px-6 py-4 border-b border-gray-800">
               <div className="font-mono text-xs text-gray-400 uppercase tracking-widest">Recent Baptisms</div>
@@ -500,7 +610,6 @@ export default function Home() {
   const { address, isConnected } = useWallet();
   const toast = useToast();
 
-  // Read initial tab from URL hash
   const getTabFromHash = () => {
     if (typeof window === 'undefined') return 'home';
     const hash = window.location.hash.replace('#', '');
@@ -509,7 +618,6 @@ export default function Home() {
 
   const [tab, setTabState] = useState('home');
 
-  // Sync tab → URL hash
   const setTab = useCallback((newTab: string) => {
     setTabState(newTab);
     if (typeof window !== 'undefined') {
@@ -518,7 +626,6 @@ export default function Home() {
     }
   }, []);
 
-  // Read hash on mount + listen for popstate (browser back/forward)
   useEffect(() => {
     setTabState(getTabFromHash());
     const onHashChange = () => setTabState(getTabFromHash());
@@ -529,6 +636,7 @@ export default function Home() {
       window.removeEventListener('popstate', onHashChange);
     };
   }, []);
+
   const [confessionText, setConfessionText] = useState('');
   const [loading, setLoading] = useState(false);
   const [salvation, setSalvation] = useState<any>(null);
@@ -538,7 +646,6 @@ export default function Home() {
   const [displayStats, setDisplayStats] = useState({ confessions: 0, sinners: 0, onChain: 0 });
   const salvationRef = useRef<HTMLDivElement>(null);
 
-  // Fetch real stats from API
   useEffect(() => {
     fetch('/api/stats')
       .then((r) => r.json())
@@ -552,13 +659,12 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
-  // Animate counter when stats change
   useEffect(() => {
     if (stats.confessions === 0 && stats.sinners === 0) return;
     const dur = 1800, start = performance.now();
     const anim = (now: number) => {
       const p = Math.min((now - start) / dur, 1);
-      const e = 1 - Math.pow(1 - p, 3); // ease-out cubic
+      const e = 1 - Math.pow(1 - p, 3);
       setDisplayStats({
         confessions: Math.floor(stats.confessions * e),
         sinners: Math.floor(stats.sinners * e),
@@ -606,10 +712,19 @@ export default function Home() {
     <>
       <Navbar activeTab={tab} onTabChange={setTab} />
 
+      {/* MyDares notification bell - fixed position */}
+      {isConnected && (
+        <div className="fixed top-3 right-24 md:right-40 z-50">
+          <MyDares onNavigateToConfess={(dareId, dareText) => {
+            setConfessionText(`[DARE] ${dareText}`);
+            setTab('confess');
+          }} />
+        </div>
+      )}
+
       {/* ===== HOME ===== */}
       {tab === 'home' && (
         <>
-          {/* Hero */}
           <section className="min-h-[85vh] md:min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-20 md:pt-32 pb-16 md:pb-20 relative">
             <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle,rgba(255,45,45,0.15),transparent_70%)] pointer-events-none opacity-40" />
             <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
@@ -631,7 +746,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Stats */}
           <section className="py-12 md:py-20 border-t border-gray-800/50">
             <div className="flex justify-center gap-8 md:gap-16 max-w-5xl mx-auto px-4 sm:px-6 max-sm:flex-col max-sm:gap-6 max-sm:items-center">
               <div className="text-center group">
@@ -659,7 +773,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* 7 Sins */}
           <section className="py-12 md:py-20 border-t border-gray-800/50">
             <div className="max-w-5xl mx-auto px-4 sm:px-6">
               <div className="font-mono text-xs text-accent uppercase tracking-[3px] text-center mb-4">Categories of Sin</div>
@@ -682,7 +795,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* How it works */}
           <section className="py-12 md:py-20 border-t border-gray-800/50">
             <div className="max-w-4xl mx-auto px-4 sm:px-6">
               <div className="font-mono text-xs text-accent uppercase tracking-[3px] text-center mb-4">How It Works</div>
@@ -699,7 +811,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Token */}
           <section id="token" className="py-12 md:py-20 border-t border-gray-800/50">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
               <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Baptism Economy</div>
@@ -713,6 +824,9 @@ export default function Home() {
                 <button onClick={() => setTab('leaderboard')} className="inline-flex justify-center border border-yellow-500/30 text-yellow-400 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:bg-yellow-500/10 hover:-translate-y-0.5 transition-all">
                   🕊 View Leaderboard
                 </button>
+                <button onClick={() => setTab('pool')} className="inline-flex justify-center border border-purple-500/30 text-purple-400 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:bg-purple-500/10 hover:-translate-y-0.5 transition-all">
+                  🏊 Weekly Pool
+                </button>
               </div>
             </div>
           </section>
@@ -725,6 +839,16 @@ export default function Home() {
           <div className="font-mono text-xs text-accent uppercase tracking-[3px] mb-4">The Confessional</div>
           <h2 className="font-display text-2xl text-white mb-2">⛪ The Confessional</h2>
           <p className="text-gray-500 text-sm mb-8">Father Degen is listening. Unburden your soul, sinner.</p>
+
+          {/* Show if confessing a dare */}
+          {confessionText.startsWith('[DARE]') && (
+            <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-purple-400 font-bold text-sm">⚡ Dare Confession</span>
+              </div>
+              <p className="text-gray-300 text-sm">{confessionText.replace('[DARE] ', '')}</p>
+            </div>
+          )}
 
           {isConnected ? (
             <>
@@ -785,7 +909,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* ===== WALL (Enhanced) ===== */}
+      {/* ===== WALL ===== */}
       {tab === 'wall' && (
         <FeedSection
           title="The Wall of Sin"
@@ -822,7 +946,25 @@ export default function Home() {
       )}
 
       {/* ===== LEADERBOARD ===== */}
-      {tab === 'leaderboard' && <LeaderboardTab />}
+      {tab === 'leaderboard' && (
+        <>
+          <LeaderboardTab />
+          <section className="max-w-3xl mx-auto px-4 sm:px-6 pb-24 md:pb-20 space-y-6">
+            <BaptismPool />
+            <StreakBadge />
+          </section>
+        </>
+      )}
+
+      {/* ===== POOL TAB ===== */}
+      {tab === 'pool' && (
+        <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 md:pt-32 pb-24 md:pb-20 space-y-6">
+          <div className="font-mono text-xs text-purple-400 uppercase tracking-[3px] mb-4">Weekly Rewards</div>
+          <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-8">Baptism Pool & Streaks</h2>
+          <BaptismPool />
+          <StreakBadge />
+        </section>
+      )}
 
       {/* ===== CHAT ===== */}
       {tab === 'chat' && (
@@ -871,6 +1013,10 @@ export default function Home() {
                         <div className="font-mono text-xl sm:text-2xl text-green-400">{(profile?.totalEarned || 0).toFixed(4)}</div>
                         <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">ETH Earned</div>
                       </div>
+                      <div className="text-center">
+                        <div className="font-mono text-xl sm:text-2xl text-orange-400">{profile?.baptizeStreak || 0}</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">🔥 Streak</div>
+                      </div>
                       <div className="text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setTab('mybaptisms')}>
                         <div className="font-mono text-xl sm:text-2xl text-gray-300">{profile?.donationCount || 0}</div>
                         <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider underline decoration-dotted">Baptisms →</div>
@@ -879,7 +1025,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Sin Score Breakdown */}
                 {profile?.sinScore > 0 && (
                   <div className="mt-6 pt-6 border-t border-gray-800">
                     <div className="font-mono text-[11px] text-gray-500 uppercase tracking-widest mb-3">Sin Level</div>
@@ -905,7 +1050,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Quick links */}
               <div className="flex flex-col gap-3">
                 <a
                   href={`/user/${profile?.id}`}
@@ -933,6 +1077,19 @@ export default function Home() {
                   </div>
                   <span className="text-gray-500 group-hover:text-white transition-colors">→</span>
                 </button>
+                <button
+                  onClick={() => setTab('pool')}
+                  className="w-full bg-card border border-purple-500/20 rounded-xl p-5 flex items-center justify-between hover:border-purple-500/40 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🏊</span>
+                    <div className="text-left">
+                      <div className="text-white font-medium text-sm">Weekly Baptism Pool</div>
+                      <div className="text-gray-500 text-xs">Compete for weekly ETH rewards • View streaks</div>
+                    </div>
+                  </div>
+                  <span className="text-gray-500 group-hover:text-white transition-colors">→</span>
+                </button>
               </div>
             </>
           )}
@@ -945,6 +1102,7 @@ export default function Home() {
           {['𝕏 Twitter', 'Telegram', 'Flaunch'].map((l) => (
             <a key={l} href="#" className="text-sm text-gray-500 hover:text-white transition-colors">{l}</a>
           ))}
+          <button onClick={() => setTab('pool')} className="text-sm text-purple-400 hover:text-purple-300 transition-colors">🏊 Weekly Pool</button>
           <a href="/onchain" className="text-sm text-green-500 hover:text-green-400 transition-colors">⛓ On-Chain Viewer</a>
         </div>
         <p className="text-xs text-gray-600">© 2026 ConfessAI — All sins recorded on Base. No edits. No deletes. No salvation guaranteed. confessai.fun</p>

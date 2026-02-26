@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/user/[id] — public user profile
+// GET /api/user/[id] — public user profile with paginated sections
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const { searchParams } = new URL(req.url);
+    const confessionsCursor = searchParams.get('confessionsCursor');
+    const baptismsCursor = searchParams.get('baptismsCursor');
+    const earnedCursor = searchParams.get('earnedCursor');
+    const limit = 10;
+
     const user = await prisma.user.findUnique({
       where: { id: params.id },
       select: {
@@ -16,6 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         donationCount: true,
         totalEarned: true,
         earnedCount: true,
+        baptizeStreak: true,
         createdAt: true,
       },
     });
@@ -24,11 +31,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Recent confessions
-    const confessions = await prisma.confession.findMany({
+    // Paginated confessions
+    const confessionsRaw = await prisma.confession.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
-      take: 10,
+      take: limit + 1,
+      ...(confessionsCursor ? { cursor: { id: confessionsCursor }, skip: 1 } : {}),
       select: {
         id: true,
         confessionText: true,
@@ -41,38 +49,49 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         createdAt: true,
       },
     });
+    const confessionsHasMore = confessionsRaw.length > limit;
+    const confessions = confessionsHasMore ? confessionsRaw.slice(0, limit) : confessionsRaw;
 
-    // Baptisms given (donations made by this user)
-    const baptismsGiven = await prisma.donation.findMany({
+    // Paginated baptisms given
+    const baptismsGivenRaw = await prisma.donation.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
-      take: 10,
+      take: limit + 1,
+      ...(baptismsCursor ? { cursor: { id: baptismsCursor }, skip: 1 } : {}),
       include: {
         confession: {
           select: { id: true, confessionText: true, sinCategory: true },
         },
       },
     });
+    const baptismsHasMore = baptismsGivenRaw.length > limit;
+    const baptismsGiven = baptismsHasMore ? baptismsGivenRaw.slice(0, limit) : baptismsGivenRaw;
 
-    // Donations earned (donations received on user's confessions)
-    const donationsEarned = await prisma.donation.findMany({
+    // Paginated donations earned
+    const donationsEarnedRaw = await prisma.donation.findMany({
       where: {
         confession: { userId: user.id },
-        userId: { not: user.id }, // exclude self-baptisms
+        userId: { not: user.id },
       },
       orderBy: { createdAt: 'desc' },
-      take: 10,
+      take: limit + 1,
+      ...(earnedCursor ? { cursor: { id: earnedCursor }, skip: 1 } : {}),
       include: {
         user: { select: { id: true, username: true, walletAddress: true } },
         confession: { select: { id: true, confessionText: true, sinCategory: true } },
       },
     });
+    const earnedHasMore = donationsEarnedRaw.length > limit;
+    const donationsEarned = earnedHasMore ? donationsEarnedRaw.slice(0, limit) : donationsEarnedRaw;
 
     return NextResponse.json({
       user,
       confessions,
+      confessionsNextCursor: confessionsHasMore ? confessions[confessions.length - 1].id : null,
       baptismsGiven,
+      baptismsNextCursor: baptismsHasMore ? baptismsGiven[baptismsGiven.length - 1].id : null,
       donationsEarned,
+      earnedNextCursor: earnedHasMore ? donationsEarned[donationsEarned.length - 1].id : null,
     });
   } catch (err) {
     console.error('User profile error:', err);

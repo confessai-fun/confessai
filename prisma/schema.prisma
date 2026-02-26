@@ -10,13 +10,16 @@ datasource db {
 model User {
   id               String       @id @default(cuid())
   walletAddress    String       @unique @map("wallet_address")
-  username         String?
+  username         String?      @unique
   sinScore         Int          @default(0) @map("sin_score")
   totalConfessions Int          @default(0) @map("total_confessions")
   totalDonated     Float        @default(0) @map("total_donated")
   donationCount    Int          @default(0) @map("donation_count")
   totalEarned      Float        @default(0) @map("total_earned")
   earnedCount      Int          @default(0) @map("earned_count")
+  baptizeStreak    Int          @default(0) @map("baptize_streak")
+  lastBaptizeDate  DateTime?    @map("last_baptize_date")
+  streakMultiplier Float        @default(1.0) @map("streak_multiplier")
   createdAt        DateTime     @default(now()) @map("created_at")
 
   confessions      Confession[]
@@ -24,6 +27,8 @@ model User {
   likes            Like[]
   chatMessages     ChatMessage[]
   donations        Donation[]
+  daresGiven       Dare[]       @relation("daresGiven")
+  daresReceived    Dare[]       @relation("daresReceived")
 
   @@map("users")
 }
@@ -49,6 +54,7 @@ model Confession {
   comments       Comment[]
   likes          Like[]
   donations      Donation[]
+  dares          Dare[]
 
   @@index([userId])
   @@index([createdAt(sort: Desc)])
@@ -59,7 +65,7 @@ model Donation {
   id             String     @id @default(cuid())
   confessionId   String     @map("confession_id")
   userId         String     @map("user_id")
-  amount         Float                              // ETH amount
+  amount         Float
   txHash         String     @map("tx_hash")
   createdAt      DateTime   @default(now()) @map("created_at")
 
@@ -112,4 +118,59 @@ model ChatMessage {
 
   @@index([userId, createdAt])
   @@map("chat_messages")
+}
+
+// ===== Dare System =====
+model Dare {
+  id                  String     @id @default(cuid())
+  confessionId        String     @map("confession_id")
+  fromUserId          String     @map("from_user_id")
+  toUserId            String     @map("to_user_id")
+  dareText            String     @map("dare_text")
+  amount              Float
+  txHash              String     @map("tx_hash")
+  status              String     @default("pending")     // pending | accepted | declined | expired
+  acceptedAt          DateTime?  @map("accepted_at")
+  resultConfessionId  String?    @map("result_confession_id")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  expiresAt           DateTime   @map("expires_at")
+
+  confession          Confession @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  fromUser            User       @relation("daresGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser              User       @relation("daresReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId, status])
+  @@index([confessionId])
+  @@map("dares")
+}
+
+// ===== Weekly Baptism Pool =====
+model BaptismPool {
+  id          String       @id @default(cuid())
+  weekStart   DateTime     @map("week_start")
+  weekEnd     DateTime     @map("week_end")
+  totalPool   Float        @default(0) @map("total_pool")
+  distributed Boolean      @default(false)
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  payouts     PoolPayout[]
+
+  @@unique([weekStart])
+  @@map("baptism_pools")
+}
+
+model PoolPayout {
+  id        String      @id @default(cuid())
+  poolId    String      @map("pool_id")
+  userId    String      @map("user_id")
+  rank      Int
+  amount    Float
+  txHash    String?     @map("tx_hash")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  pool      BaptismPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  @@index([poolId])
+  @@index([userId])
+  @@map("pool_payouts")
 }

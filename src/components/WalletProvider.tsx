@@ -31,6 +31,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
 
+    // Add inside WalletProvider, at the top of the component
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      if (
+        event.reason?.message?.includes('MetaMask') ||
+        event.reason?.message?.includes('extension not found')
+      ) {
+        event.preventDefault(); // Suppress MetaMask's own errors
+        console.warn('MetaMask extension error suppressed');
+      }
+    };
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, []);
+
   // Check existing session on mount
   useEffect(() => {
     fetch('/api/auth')
@@ -38,7 +53,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       .then((d) => {
         if (d.authenticated) {
           setAddress(d.walletAddress);
-          // Check if user has username
           checkUsername(d.walletAddress);
         }
       })
@@ -48,7 +62,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const checkUsername = async (wallet: string) => {
     try {
-      // Check localStorage cache first
       const cachedName = typeof window !== 'undefined' ? localStorage.getItem(`username_${wallet}`) : null;
       if (cachedName) {
         setUsernameState(cachedName);
@@ -60,10 +73,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (data.user?.username) {
         setUsernameState(data.user.username);
         setShowUsernameModal(false);
-        // Cache it
         if (typeof window !== 'undefined') localStorage.setItem(`username_${wallet}`, data.user.username);
       } else if (!cachedName) {
-        // Only show modal if user hasn't dismissed it before and no cached name
         const dismissed = typeof window !== 'undefined' && localStorage.getItem(`username_dismissed_${wallet}`);
         if (!dismissed) {
           setShowUsernameModal(true);
@@ -74,10 +85,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Listen for account changes
   useEffect(() => {
-    if (typeof window.ethereum === 'undefined') return;
+    if (typeof window === 'undefined' || !window.ethereum) return;
     const handler = (accounts: string[]) => {
       if (accounts.length === 0) {
-        fetch('/api/auth', { method: 'DELETE' });
+        fetch('/api/auth', { method: 'DELETE' }).catch(() => {});
         setAddress(null);
         setUsernameState(null);
         setShowUsernameModal(false);
@@ -87,8 +98,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => { window.ethereum?.removeListener?.('accountsChanged', handler); };
   }, []);
 
-  // Detect if on mobile without injected provider
   const isMobileWithoutProvider = useCallback(() => {
+    if (typeof navigator === 'undefined') return false;
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
     );
@@ -112,32 +123,52 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       ethereum = window.ethereum;
     }
     if (!ethereum) {
-      // Still not found — check if MetaMask might be installed but not injected
-      // Try EIP-6963 provider discovery as fallback
       await new Promise((r) => setTimeout(r, 1000));
       ethereum = window.ethereum;
     }
 
     if (!ethereum) {
-      // Truly not installed
       window.open('https://metamask.io/download/', '_blank');
       return;
     }
 
     try {
-      const accounts: string[] = await ethereum.request({ method: 'eth_requestAccounts' });
+      let accounts: string[];
+      try {
+        accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      } catch (connErr: any) {
+        // MetaMask locked, extension error, or user rejected at wallet level
+        if (connErr?.code === 4001) {
+          console.log('User rejected wallet connection');
+        } else {
+          console.warn('MetaMask connect failed:', connErr?.message || connErr);
+        }
+        return; // Exit gracefully — don't proceed to SIWE
+      }
+
       if (!accounts || accounts.length === 0) return;
       const walletAddress = accounts[0];
 
       const nonceRes = await fetch('/api/auth?action=nonce');
+      if (!nonceRes.ok) { console.error('Failed to get nonce'); return; }
       const { nonce, mac } = await nonceRes.json();
 
       const message = `Sign in to ConfessAI\n\nNonce: ${nonce}`;
 
-      const signature: string = await ethereum.request({
-        method: 'personal_sign',
-        params: [message, walletAddress],
-      });
+      let signature: string;
+      try {
+        signature = await ethereum.request({
+          method: 'personal_sign',
+          params: [message, walletAddress],
+        });
+      } catch (signErr: any) {
+        if (signErr?.code === 4001) {
+          console.log('User rejected signature');
+        } else {
+          console.warn('Signature failed:', signErr?.message || signErr);
+        }
+        return; // Exit gracefully
+      }
 
       const verifyRes = await fetch('/api/auth', {
         method: 'POST',
@@ -148,22 +179,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const result = await verifyRes.json();
       if (result.authenticated) {
         setAddress(result.walletAddress);
-        // After successful connect, check if username exists
         await checkUsername(result.walletAddress);
       } else {
         console.error('Auth failed:', result.error);
       }
     } catch (err: any) {
-      if (err?.code === 4001) {
-        console.log('User rejected');
-      } else {
-        console.error('Connect error:', err);
-      }
+      // Catch-all for network errors, unexpected failures
+      console.error('Connect error:', err?.message || err);
     }
-  }, []);
+  }, [isMobileWithoutProvider]);
 
   const disconnect = useCallback(async () => {
-    await fetch('/api/auth', { method: 'DELETE' });
+    await fetch('/api/auth', { method: 'DELETE' }).catch(() => {});
     setAddress(null);
     setUsernameState(null);
     setShowUsernameModal(false);

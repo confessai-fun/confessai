@@ -6,24 +6,23 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get('cursor');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const sort = searchParams.get('sort') || 'recent'; // recent | trending | sinful
-    const category = searchParams.get('category'); // Greed, FOMO, etc. or null for all
-    const mine = searchParams.get('mine') === 'true'; // only my confessions
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const sort = searchParams.get('sort') || 'recent';
+    const category = searchParams.get('category');
+    const mine = searchParams.get('mine') === 'true';
 
-    // Build where clause
     const where: any = {};
     if (category && category !== 'all') {
       where.sinCategory = category;
     }
 
-    // Get current user if authenticated
     let currentUserId: string | null = null;
     try {
       const wallet = await getWalletFromReq();
       if (wallet) {
         const user = await prisma.user.findUnique({
           where: { walletAddress: wallet },
+          select: { id: true },
         });
         if (user) currentUserId = user.id;
       }
@@ -36,7 +35,6 @@ export async function GET(req: NextRequest) {
       where.userId = currentUserId;
     }
 
-    // Build orderBy
     let orderBy: any;
     switch (sort) {
       case 'trending':
@@ -49,21 +47,28 @@ export async function GET(req: NextRequest) {
         orderBy = { createdAt: 'desc' };
     }
 
+    // Fetch limit+1 to know if there's a next page
     let confessions = await prisma.confession.findMany({
-      take: limit,
+      take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       where,
       orderBy,
-      include: { user: true },
+      include: {
+        user: true,
+        _count: {
+          select: { dares: true },
+        },
+      },
     });
+
+    // Determine if there's more
+    let hasMore = confessions.length > limit;
+    if (hasMore) confessions = confessions.slice(0, limit);
 
     // For "sinful" sort, re-order by sin level severity
     if (sort === 'sinful') {
       const sinOrder: Record<string, number> = {
-        'Unforgivable': 0,
-        'Cardinal': 1,
-        'Mortal': 2,
-        'Venial': 3,
+        'Unforgivable': 0, 'Cardinal': 1, 'Mortal': 2, 'Venial': 3,
       };
       confessions = confessions.sort((a, b) => {
         const aOrder = sinOrder[a.sinLevel] ?? 4;
@@ -73,7 +78,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Check likes for authenticated user
+    // Check likes for authenticated user - single batch query
     let likedIds = new Set<string>();
     if (currentUserId && confessions.length > 0) {
       const likes = await prisma.like.findMany({
@@ -86,19 +91,29 @@ export async function GET(req: NextRequest) {
       likedIds = new Set(likes.map((l) => l.confessionId));
     }
 
-    // Get category counts for filter pills
-    const categoryWhere: any = {};
-    if (mine && currentUserId) categoryWhere.userId = currentUserId;
-    
-    const categoryCounts = await prisma.confession.groupBy({
-      by: ['sinCategory'],
-      _count: { id: true },
-      where: Object.keys(categoryWhere).length > 0 ? categoryWhere : undefined,
-    });
+    // Category counts - only on first page (no cursor), cached per sort/mine combo
+    let categories: { name: string; count: number }[] = [];
+    let totalCount = 0;
+    if (!cursor) {
+      const categoryWhere: any = {};
+      if (mine && currentUserId) categoryWhere.userId = currentUserId;
 
-    const totalCount = await prisma.confession.count({
-      where: Object.keys(categoryWhere).length > 0 ? categoryWhere : undefined,
-    });
+      const [categoryCounts, total] = await Promise.all([
+        prisma.confession.groupBy({
+          by: ['sinCategory'],
+          _count: { id: true },
+          where: Object.keys(categoryWhere).length > 0 ? categoryWhere : undefined,
+        }),
+        prisma.confession.count({
+          where: Object.keys(categoryWhere).length > 0 ? categoryWhere : undefined,
+        }),
+      ]);
+
+      categories = categoryCounts.map((cc) => ({ name: cc.sinCategory, count: cc._count.id }));
+      totalCount = total;
+    }
+
+    const nextCursor = hasMore ? confessions[confessions.length - 1].id : null;
 
     const result = confessions.map((c) => ({
       ...c,
@@ -107,8 +122,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       confessions: result,
-      nextCursor: confessions.length === limit ? confessions[confessions.length - 1].id : null,
-      categories: categoryCounts.map((cc) => ({ name: cc.sinCategory, count: cc._count.id })),
+      nextCursor,
+      categories,
       totalCount,
     });
   } catch (err) {

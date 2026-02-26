@@ -32,14 +32,44 @@ export async function PUT(req: NextRequest) {
 
   try {
     const { username } = await req.json();
+    const trimmed = username?.trim() || null;
+
+    // Validate username
+    if (trimmed) {
+      // Length check
+      if (trimmed.length < 3 || trimmed.length > 20) {
+        return NextResponse.json({ error: 'Username must be 3-20 characters' }, { status: 400 });
+      }
+
+      // Only allow alphanumeric, underscore, dash
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+        return NextResponse.json({ error: 'Username can only contain letters, numbers, _ and -' }, { status: 400 });
+      }
+
+      // Check uniqueness (case-insensitive)
+      const existing = await prisma.user.findFirst({
+        where: {
+          username: { equals: trimmed, mode: 'insensitive' },
+          NOT: { walletAddress: wallet },
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json({ error: 'Username already taken' }, { status: 409 });
+      }
+    }
 
     const user = await prisma.user.update({
       where: { walletAddress: wallet },
-      data: { username: username?.trim() || null },
+      data: { username: trimmed },
     });
 
     return NextResponse.json({ user });
-  } catch (err) {
+  } catch (err: any) {
+    // Catch Prisma unique constraint error as fallback
+    if (err?.code === 'P2002' && err?.meta?.target?.includes('username')) {
+      return NextResponse.json({ error: 'Username already taken' }, { status: 409 });
+    }
     console.error('Profile PUT error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

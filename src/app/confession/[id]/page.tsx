@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/components/WalletProvider';
+import DareCreate from '@/components/DareCreate';
 
 function timeAgo(d: string) {
   const sec = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
@@ -42,6 +43,15 @@ export default function ConfessionPage() {
   const [donateAmount, setDonateAmount] = useState('');
   const [donating, setDonating] = useState(false);
 
+  // Post-baptism dare
+  const [showDare, setShowDare] = useState(false);
+  const [lastBaptismTxHash, setLastBaptismTxHash] = useState('');
+  const [lastBaptismAmount, setLastBaptismAmount] = useState(0);
+  const [baptismStreak, setBaptismStreak] = useState<number | null>(null);
+
+  // Dares on this confession
+  const [dares, setDares] = useState<any[]>([]);
+
   // Like
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -63,12 +73,22 @@ export default function ConfessionPage() {
       })
       .catch(() => setError('Failed to load'))
       .finally(() => setLoading(false));
+
+    loadDares();
   }, [id]);
+
+  const loadDares = () => {
+    fetch(`/api/dare?type=confession&confessionId=${id}`)
+      .then((r) => r.json())
+      .then((d) => setDares(d.dares || []))
+      .catch(() => {});
+  };
 
   const reload = () => {
     fetch(`/api/confession/${id}`)
       .then((r) => r.json())
       .then((d) => { if (!d.error) setData(d); });
+    loadDares();
   };
 
   const handleLike = async () => {
@@ -102,6 +122,23 @@ export default function ConfessionPage() {
       reload();
     } catch {}
     setPosting(false);
+  };
+
+  const handleDareRespond = async (dareId: string, action: 'accept' | 'decline') => {
+    try {
+      const res = await fetch('/api/dare', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dareId, action }),
+      });
+      if (res.ok && action === 'accept') {
+        const dare = dares.find(d => d.id === dareId);
+        if (dare) {
+          router.push(`/?confess&dare=${encodeURIComponent(dare.dareText)}&from=${id}#confess`);
+        }
+      }
+      loadDares();
+    } catch {}
   };
 
   const ensureBaseNetwork = async (): Promise<boolean> => {
@@ -138,6 +175,8 @@ export default function ConfessionPage() {
     const val = parseFloat(amt);
     if (!val || val <= 0) return;
     setDonating(true);
+    setShowDare(false);
+
     try {
       const onBase = await ensureBaseNetwork();
       if (!onBase) {
@@ -177,7 +216,7 @@ export default function ConfessionPage() {
         }
       }
 
-      await fetch('/api/donate', {
+      const donateRes = await fetch('/api/donate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,9 +226,21 @@ export default function ConfessionPage() {
           txHashOwner: txHashOwner || txHashChurch,
         }),
       });
+
+      const donateData = await donateRes.json();
+
       setShowBaptize(false);
       setDonateAmount('');
-      reload();
+
+      if (donateData.streak) setBaptismStreak(donateData.streak);
+
+      if (!isSelfBaptize) {
+        setLastBaptismTxHash(txHashChurch);
+        setLastBaptismAmount(txHashOwner ? val : val / 2);
+        setShowDare(true);
+      } else {
+        reload();
+      }
     } catch (e: any) {
       console.error('Baptize error:', e);
     }
@@ -198,9 +249,9 @@ export default function ConfessionPage() {
 
   const shareTwitter = () => {
     if (!data?.confession) return;
-    const c = data.confession;
-    const icon = SIN_COLORS[c.sinCategory]?.icon || '⛪';
-    const text = `${icon} I confessed my crypto sin on @ConfessAI\n\n"${c.confessionText.slice(0, 100)}${c.confessionText.length > 100 ? '...' : ''}"\n\n⛪ Father Degen judged me: ${c.sinCategory} — ${c.sinLevel}\n\nConfess yours → confessai.fun/confession/${c.id}\n\n$CONFESS`;
+    const confession = data.confession;
+    const icon = SIN_COLORS[confession.sinCategory]?.icon || '⛪';
+    const text = `${icon} I confessed my crypto sin on @ConfessAI\n\n"${confession.confessionText.slice(0, 100)}${confession.confessionText.length > 100 ? '...' : ''}"\n\n⛪ Father Degen judged me: ${confession.sinCategory} — ${confession.sinLevel}\n\nConfess yours → confessai.fun/confession/${confession.id}\n\n$CONFESS`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -221,7 +272,7 @@ export default function ConfessionPage() {
         <div className="text-center">
           <div className="text-5xl mb-4">😈</div>
           <h1 className="font-display text-2xl text-white mb-2">Sin Not Found</h1>
-          <p className="text-gray-500 mb-6">This confession doesn't exist or has been lost to the void.</p>
+          <p className="text-gray-500 mb-6">This confession doesn&apos;t exist or has been lost to the void.</p>
           <button onClick={() => router.push('/')} className="bg-accent text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-red-600 transition-colors">
             ← Back to Wall of Sin
           </button>
@@ -233,6 +284,7 @@ export default function ConfessionPage() {
   const c = data.confession;
   const sinStyle = SIN_COLORS[c.sinCategory] || SIN_COLORS.Greed;
   const displayName = c.user?.username || trunc(c.user?.walletAddress);
+  const isSelfConfession = c.user?.walletAddress?.toLowerCase() === address?.toLowerCase();
 
   return (
     <div className="min-h-screen bg-bg">
@@ -245,16 +297,25 @@ export default function ConfessionPage() {
           }} className="font-display text-base sm:text-lg text-white hover:text-accent transition-colors">
             ← Back
           </button>
-          <button
-            onClick={shareTwitter}
-            className="text-sm text-gray-400 hover:text-white transition-colors font-mono"
-          >
+          <button onClick={shareTwitter} className="text-sm text-gray-400 hover:text-white transition-colors font-mono">
             ↗ Share on 𝕏
           </button>
         </div>
       </nav>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 sm:pt-28 pb-20">
+        {/* Dare origin link — if this confession was from a dare, link back to the original */}
+        {c.confessionText?.startsWith('[DARE]') && c.dareFromConfessionId && (
+          <a
+            href={`/confession/${c.dareFromConfessionId}`}
+            className="flex items-center gap-2 mb-4 px-4 py-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-sm hover:bg-purple-500/15 transition-colors"
+          >
+            <span className="text-purple-400">⚡</span>
+            <span className="text-purple-300">This is a dare confession — view the original post that sparked it</span>
+            <span className="text-purple-400 ml-auto">→</span>
+          </a>
+        )}
+
         {/* Sin category header */}
         <div className={`bg-gradient-to-r ${sinStyle.gradient} border ${sinStyle.border} rounded-xl sm:rounded-2xl p-5 sm:p-8 mb-6`}>
           <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -279,7 +340,6 @@ export default function ConfessionPage() {
             </div>
           </div>
 
-          {/* The confession text */}
           <p className="text-base sm:text-xl text-white leading-relaxed font-medium">
             &ldquo;{c.confessionText}&rdquo;
           </p>
@@ -321,7 +381,13 @@ export default function ConfessionPage() {
             {liked ? '❤️' : '🤍'} {likeCount} {likeCount === 1 ? 'like' : 'likes'}
           </button>
           <span className="text-gray-600">·</span>
-          <span className="text-sm text-gray-500">💬 {data.comments?.length || c.commentsCount || 0} comments</span>
+          <span className="text-sm text-gray-500">💬 {data.comments?.length || c.commentsCount || 0}</span>
+          {dares.length > 0 && (
+            <>
+              <span className="text-gray-600">·</span>
+              <span className="text-sm text-purple-400">⚡ {dares.length} dare{dares.length !== 1 ? 's' : ''}</span>
+            </>
+          )}
           <span className="text-gray-600">·</span>
           <button onClick={shareTwitter} className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
             ↗ Share
@@ -375,6 +441,133 @@ export default function ConfessionPage() {
           </div>
         )}
 
+        {/* Post-baptism: Streak + Dare */}
+        {showDare && (
+          <div className="space-y-3 mb-6">
+            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-400 font-bold text-sm">✅ Baptism Complete!</p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    {lastBaptismAmount.toFixed(4)} ETH sent — 50% to sinner, 50% to Church
+                  </p>
+                </div>
+                {baptismStreak && baptismStreak > 1 && (
+                  <div className={`text-center px-3 py-1.5 rounded-full ${
+                    baptismStreak >= 7 ? 'bg-red-500/20 text-red-400 animate-pulse' :
+                    baptismStreak >= 3 ? 'bg-orange-500/20 text-orange-400' :
+                    'bg-yellow-500/20 text-yellow-400'
+                  }`}>
+                    <span className="text-sm font-bold">🔥 {baptismStreak}d streak</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {!isSelfConfession && (
+              <DareCreate
+                confessionId={id}
+                txHash={lastBaptismTxHash}
+                amount={lastBaptismAmount}
+                onDareCreated={() => {
+                  loadDares();
+                  setTimeout(() => reload(), 1500);
+                }}
+              />
+            )}
+
+            <button
+              onClick={() => { setShowDare(false); reload(); }}
+              className="w-full text-center text-xs text-gray-600 hover:text-gray-400 transition-colors py-1"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* ===== DARES SECTION ===== */}
+        {dares.length > 0 && (
+          <div className="bg-card border border-purple-500/20 rounded-xl overflow-hidden mb-6">
+            <div className="border-b border-purple-500/10 px-6 py-4 flex items-center justify-between">
+              <div className="font-mono text-xs text-purple-400 uppercase tracking-widest">
+                ⚡ Dares ({dares.length})
+              </div>
+              {dares.filter(d => d.status === 'pending').length > 0 && (
+                <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+                  {dares.filter(d => d.status === 'pending').length} pending
+                </span>
+              )}
+            </div>
+            <div className="divide-y divide-purple-500/10">
+              {dares.map((dare: any) => (
+                <div key={dare.id} className={`px-4 sm:px-6 py-4 ${
+                  dare.status === 'accepted' ? 'bg-green-500/5' :
+                  dare.status === 'declined' ? 'bg-red-500/5 opacity-60' :
+                  dare.status === 'expired' ? 'opacity-40' : ''
+                }`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-400">⚡</span>
+                      <a href={`/user/${dare.fromUser?.id}`} className="font-mono text-sm text-purple-300 hover:text-purple-200 transition-colors">
+                        {dare.fromUser?.username || trunc(dare.fromUser?.walletAddress)}
+                      </a>
+                      <span className="text-gray-600 text-xs">·</span>
+                      <span className="text-xs text-gray-500">{timeAgo(dare.createdAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-400 text-sm font-mono font-bold">⟠ {dare.amount}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase ${
+                        dare.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                        dare.status === 'accepted' ? 'bg-green-500/20 text-green-400' :
+                        dare.status === 'declined' ? 'bg-red-500/20 text-red-400' :
+                        'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {dare.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-white text-sm mb-2 pl-7">&ldquo;{dare.dareText}&rdquo;</p>
+
+                  {/* Accept/Decline for the dare recipient */}
+                  {dare.status === 'pending' && dare.toUser?.walletAddress?.toLowerCase() === address?.toLowerCase() && (
+                    <div className="flex gap-2 pl-7 mt-2">
+                      <button
+                        onClick={() => handleDareRespond(dare.id, 'accept')}
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs py-1.5 px-4 rounded-lg font-medium transition"
+                      >
+                        ✅ Accept & Confess
+                      </button>
+                      <button
+                        onClick={() => handleDareRespond(dare.id, 'decline')}
+                        className="bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs py-1.5 px-4 rounded-lg font-medium transition"
+                      >
+                        ❌ Decline
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Show link to resulting confession if dare was accepted */}
+                  {dare.status === 'accepted' && dare.resultConfessionId && (
+                    <a
+                      href={`/confession/${dare.resultConfessionId}`}
+                      className="inline-flex items-center gap-1 text-xs text-green-400 hover:text-green-300 pl-7 mt-1 transition-colors"
+                    >
+                      → View dare confession
+                    </a>
+                  )}
+
+                  {dare.status === 'pending' && (
+                    <p className="text-[10px] text-gray-600 pl-7 mt-1">
+                      Expires: {new Date(dare.expiresAt).toLocaleDateString()} {new Date(dare.expiresAt).toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Baptisms / Donations */}
         {data.donations?.length > 0 && (
           <div className="bg-card border border-gray-800 rounded-xl overflow-hidden mb-6">
@@ -422,7 +615,6 @@ export default function ConfessionPage() {
             </div>
           </div>
 
-          {/* Comment input */}
           {isConnected && (
             <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800/50">
               <div className="flex gap-2 sm:gap-3">
@@ -446,7 +638,6 @@ export default function ConfessionPage() {
             </div>
           )}
 
-          {/* Comment list */}
           <div className="divide-y divide-gray-800/50">
             {(data.comments?.length || 0) === 0 ? (
               <div className="px-6 py-8 text-center text-gray-600 text-sm">
