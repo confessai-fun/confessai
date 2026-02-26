@@ -3,6 +3,7 @@ import './globals.css';
 import { WalletProvider } from '@/components/WalletProvider';
 import { ToastProvider } from '@/components/Toast';
 import UsernameModal from '@/components/UsernameModal';
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: 'ConfessAI — Confess Your Crypto Sins On-Chain',
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <Analytics /> {/* Vercel Analytics */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
