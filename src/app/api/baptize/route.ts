@@ -63,9 +63,8 @@ export async function POST(req: NextRequest) {
       data: {
         amount,
         txHash,
-        donorId: user.id,
+        userId: user.id,
         confessionId,
-        recipientId: confession.userId,
       },
     });
 
