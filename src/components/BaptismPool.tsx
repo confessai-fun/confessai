@@ -82,7 +82,7 @@ export default function BaptismPool() {
         <div className="text-center py-4">
           <p className="text-gray-400 text-sm mb-1">Current Pool</p>
           <p className="text-4xl font-black text-green-400">
-            ⟠ {pool.currentPool.total.toFixed(6)} ETH
+            ◎ {pool.currentPool.total.toFixed(6)} SOL
           </p>
           <p className="text-gray-500 text-xs mt-1">
             Top 10 baptizers split 50% of church earnings weekly
@@ -134,7 +134,7 @@ export default function BaptismPool() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span>⟠ {entry.totalBaptized.toFixed(6)}</span>
+                    <span>◎ {entry.totalBaptized.toFixed(6)}</span>
                     <span>✝️ {entry.baptismCount} baptisms</span>
                   </div>
                 </div>
@@ -142,7 +142,7 @@ export default function BaptismPool() {
                 {/* Projected Payout */}
                 <div className="text-right">
                   <p className="text-green-400 text-sm font-bold">
-                    ⟠ {entry.projectedPayout.toFixed(6)}
+                    ◎ {entry.projectedPayout.toFixed(6)}
                   </p>
                   <p className="text-gray-500 text-xs">{(entry.share * 100).toFixed(0)}%</p>
                 </div>
@@ -163,7 +163,7 @@ export default function BaptismPool() {
       {pool.lastWeek && (
         <div className="border-t border-purple-500/10 p-4">
           <p className="text-xs text-gray-500 text-center">
-            Last week pool: <span className="text-purple-400">⟠ {pool.lastWeek.total.toFixed(6)} ETH</span>
+            Last week pool: <span className="text-purple-400">◎ {pool.lastWeek.total.toFixed(6)} SOL</span>
             {pool.lastWeek.distributed ? ' ✅ Distributed' : ' ⏳ Pending'}
           </p>
         </div>

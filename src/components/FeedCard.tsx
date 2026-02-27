@@ -132,35 +132,6 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
     } catch {}
   };
 
-  const ensureBaseNetwork = async (): Promise<boolean> => {
-    try {
-      const chainId = await window.ethereum!.request({ method: 'eth_chainId' });
-      if (chainId === '0x2105') return true;
-      try {
-        await window.ethereum!.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x2105' }],
-        });
-        return true;
-      } catch (switchErr: any) {
-        if (switchErr.code === 4902) {
-          await window.ethereum!.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: '0x2105',
-              chainName: 'Base',
-              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-              rpcUrls: ['https://mainnet.base.org'],
-              blockExplorerUrls: ['https://basescan.org'],
-            }],
-          });
-          return true;
-        }
-        return false;
-      }
-    } catch { return false; }
-  };
-
   const handleBaptize = async () => {
     if (!isConnected || !donateAmount || donating) return;
     const amount = parseFloat(donateAmount);
@@ -175,63 +146,75 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
     setShowDare(false);
 
     try {
-      const onBase = await ensureBaseNetwork();
-      if (!onBase) {
-        alert('Please switch to Base network in MetaMask to baptize.');
+      // Dynamic import to avoid SSR issues
+      const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+      const { useWallet: getSolWallet } = await import('@solana/wallet-adapter-react');
+
+      const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com');
+
+      // Get the Solana wallet adapter from window (it's available via provider)
+      const solanaProvider = (window as any).solana || (window as any).phantom?.solana;
+      if (!solanaProvider?.publicKey) {
+        alert('Please connect your Solana wallet');
         setDonating(false);
         return;
       }
 
-      const halfWei = '0x' + BigInt(Math.floor((amount / 2) * 1e18)).toString(16);
+      const fromPubkey = solanaProvider.publicKey;
+      const totalLamports = Math.floor(amount * LAMPORTS_PER_SOL);
 
       const confRes = await fetch(`/api/confession/${c.id}`);
       const confData = await confRes.json();
       const ownerWallet = confData?.confession?.user?.walletAddress;
-      const isSelfBaptize = !ownerWallet || ownerWallet.toLowerCase() === address?.toLowerCase();
+      const isSelfBaptize = !ownerWallet || ownerWallet === address;
 
-      let txHashChurch = '';
-      let txHashOwner = '';
+      const transaction = new Transaction();
 
       if (isSelfBaptize) {
-        const fullWei = '0x' + BigInt(Math.floor(amount * 1e18)).toString(16);
-        txHashChurch = await window.ethereum!.request({
-          method: 'eth_sendTransaction',
-          params: [{ from: address, to: CHURCH_WALLET, value: fullWei, chainId: '0x2105' }],
-        });
-        txHashOwner = txHashChurch;
+        // All to church
+        transaction.add(SystemProgram.transfer({
+          fromPubkey,
+          toPubkey: new PublicKey(CHURCH_WALLET),
+          lamports: totalLamports,
+        }));
       } else {
-        txHashChurch = await window.ethereum!.request({
-          method: 'eth_sendTransaction',
-          params: [{ from: address, to: CHURCH_WALLET, value: halfWei, chainId: '0x2105' }],
-        });
-
-        await ensureBaseNetwork();
-
-        try {
-          txHashOwner = await window.ethereum!.request({
-            method: 'eth_sendTransaction',
-            params: [{ from: address, to: ownerWallet, value: halfWei, chainId: '0x2105' }],
-          });
-        } catch (tx2Err: any) {
-          console.warn('Owner tx failed/rejected, recording church-only donation');
-          txHashOwner = '';
-        }
+        // 50% to confessor, 50% to church
+        const halfLamports = Math.floor(totalLamports / 2);
+        transaction.add(SystemProgram.transfer({
+          fromPubkey,
+          toPubkey: new PublicKey(ownerWallet),
+          lamports: halfLamports,
+        }));
+        transaction.add(SystemProgram.transfer({
+          fromPubkey,
+          toPubkey: new PublicKey(CHURCH_WALLET),
+          lamports: totalLamports - halfLamports,
+        }));
       }
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromPubkey;
+
+      const signed = await solanaProvider.signAndSendTransaction(transaction);
+      const txHash = signed.signature || signed;
+
+      await connection.confirmTransaction({ signature: txHash, blockhash, lastValidBlockHeight });
 
       const donateRes = await fetch('/api/donate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           confessionId: c.id,
-          amount: txHashOwner ? amount : amount / 2,
-          txHashChurch,
-          txHashOwner: txHashOwner || txHashChurch,
+          amount,
+          txHashChurch: txHash,
+          txHashOwner: txHash,
         }),
       });
 
       const donateData = await donateRes.json();
 
-      setDonated(donated + (txHashOwner ? amount : amount / 2));
+      setDonated(donated + amount);
       setDonateCount(donateCount + 1);
       setDonateAmount('');
       setShowBaptize(false);
@@ -240,17 +223,15 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         setBaptismStreak(donateData.streak);
       }
 
-      // Show dare option (only if not self-baptizing)
       if (!isSelfBaptize) {
-        setLastBaptismTxHash(txHashChurch);
-        setLastBaptismAmount(txHashOwner ? amount : amount / 2);
+        setLastBaptismTxHash(txHash);
+        setLastBaptismAmount(amount);
         setShowDare(true);
-        // DON'T call onRefresh here - it will remount and lose dare state
       } else {
         onRefresh?.();
       }
     } catch (err: any) {
-      if (err?.code !== 4001) {
+      if (!err?.message?.includes('User rejected')) {
         console.error('Baptize error:', err);
       }
     }
@@ -274,7 +255,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         <div className="flex items-center gap-3">
           {c.chainStatus === 'confirmed' && c.txHash && (
             <a
-              href={`https://basescan.org/tx/${c.txHash}`}
+              href={`https://solscan.io/tx/${c.txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded-full text-[10px] font-mono text-green-400 hover:bg-green-500/20 transition-colors"
@@ -317,7 +298,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
         </span>
         {donated > 0 && (
           <span className="px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold uppercase tracking-wider bg-yellow-500/10 text-yellow-400 border border-yellow-500/30">
-            🕊 {donated.toFixed(4)} ETH baptized
+            🕊 {donated.toFixed(4)} SOL baptized
           </span>
         )}
       </div>
@@ -364,7 +345,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
               🕊 Church of $CONFESS — Baptism Offering
             </div>
             <p className="text-xs text-gray-400 mb-4">
-              50% goes to the confessor, 50% to the Church. You&apos;ll approve 2 transactions in MetaMask. Make sure you&apos;re on Base network.
+              50% goes to the confessor, 50% to the Church. You&apos;ll confirm 1 transaction in your Solana wallet.
             </p>
             <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
               {[0.001, 0.005, 0.01, 0.05].map((amt) => (
@@ -377,7 +358,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
                       : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
                   }`}
                 >
-                  {amt} ETH
+                  {amt} SOL
                 </button>
               ))}
             </div>
@@ -387,7 +368,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
                 step="0.001"
                 min="0.0001"
                 className="flex-1 bg-bg border border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-100 font-mono focus:outline-none focus:border-yellow-500"
-                placeholder="Custom amount (ETH)"
+                placeholder="Custom amount (SOL)"
                 value={donateAmount}
                 onChange={(e) => setDonateAmount(e.target.value)}
               />
@@ -418,7 +399,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
               <div>
                 <p className="text-green-400 font-bold text-sm">✅ Baptism Complete!</p>
                 <p className="text-gray-400 text-xs mt-1">
-                  {lastBaptismAmount.toFixed(4)} ETH sent — 50% to sinner, 50% to Church
+                  {lastBaptismAmount.toFixed(4)} SOL sent — 50% to sinner, 50% to Church
                 </p>
               </div>
               {baptismStreak && baptismStreak > 1 && (
@@ -489,7 +470,7 @@ export default function FeedCard({ confession: c, onRefresh }: { confession: any
                         <span className="text-[10px] text-gray-500">{timeAgo(dare.createdAt)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-green-400 text-xs font-mono font-bold">⟠ {dare.amount}</span>
+                        <span className="text-green-400 text-xs font-mono font-bold">◎ {dare.amount}</span>
                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono uppercase ${
                           dare.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
                           dare.status === 'accepted' ? 'bg-green-500/20 text-green-400' :

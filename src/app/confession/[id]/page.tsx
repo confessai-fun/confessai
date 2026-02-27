@@ -141,89 +141,50 @@ export default function ConfessionPage() {
     } catch {}
   };
 
-  const ensureBaseNetwork = async (): Promise<boolean> => {
-    try {
-      const chainId = await window.ethereum!.request({ method: 'eth_chainId' });
-      if (chainId === '0x2105') return true;
-      try {
-        await window.ethereum!.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x2105' }],
-        });
-        return true;
-      } catch (switchErr: any) {
-        if (switchErr.code === 4902) {
-          await window.ethereum!.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: '0x2105',
-              chainName: 'Base',
-              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-              rpcUrls: ['https://mainnet.base.org'],
-              blockExplorerUrls: ['https://basescan.org'],
-            }],
-          });
-          return true;
-        }
-        return false;
-      }
-    } catch { return false; }
-  };
-
   const handleBaptize = async (amt: string) => {
-    if (!window.ethereum || !isConnected || donating) return;
+    if (!isConnected || donating) return;
     const val = parseFloat(amt);
     if (!val || val <= 0) return;
     setDonating(true);
     setShowDare(false);
 
     try {
-      const onBase = await ensureBaseNetwork();
-      if (!onBase) {
-        alert('Please switch to Base network in MetaMask to baptize.');
-        setDonating(false);
-        return;
-      }
+      const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+      const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com');
+      const solanaProvider = (window as any).solana || (window as any).phantom?.solana;
+      if (!solanaProvider?.publicKey) { alert('Connect your Solana wallet'); setDonating(false); return; }
 
+      const fromPubkey = solanaProvider.publicKey;
+      const totalLamports = Math.floor(val * LAMPORTS_PER_SOL);
       const ownerWallet = c.user?.walletAddress;
-      const isSelfBaptize = !ownerWallet || ownerWallet.toLowerCase() === address?.toLowerCase();
+      const isSelfBaptize = !ownerWallet || ownerWallet === address;
 
-      let txHashChurch = '';
-      let txHashOwner = '';
+      const transaction = new Transaction();
 
       if (isSelfBaptize) {
-        const fullWei = '0x' + BigInt(Math.round(val * 1e18)).toString(16);
-        txHashChurch = await window.ethereum.request({
-          method: 'eth_sendTransaction',
-          params: [{ from: address, to: CHURCH_WALLET, value: fullWei, chainId: '0x2105' }],
-        });
-        txHashOwner = txHashChurch;
+        transaction.add(SystemProgram.transfer({ fromPubkey, toPubkey: new PublicKey(CHURCH_WALLET!), lamports: totalLamports }));
       } else {
-        const halfWei = '0x' + BigInt(Math.round((val / 2) * 1e18)).toString(16);
-        txHashChurch = await window.ethereum.request({
-          method: 'eth_sendTransaction',
-          params: [{ from: address, to: CHURCH_WALLET, value: halfWei, chainId: '0x2105' }],
-        });
-        await ensureBaseNetwork();
-        try {
-          txHashOwner = await window.ethereum.request({
-            method: 'eth_sendTransaction',
-            params: [{ from: address, to: ownerWallet, value: halfWei, chainId: '0x2105' }],
-          });
-        } catch {
-          console.warn('Owner tx failed, recording church-only');
-          txHashOwner = '';
-        }
+        const halfLamports = Math.floor(totalLamports / 2);
+        transaction.add(SystemProgram.transfer({ fromPubkey, toPubkey: new PublicKey(ownerWallet), lamports: halfLamports }));
+        transaction.add(SystemProgram.transfer({ fromPubkey, toPubkey: new PublicKey(CHURCH_WALLET!), lamports: totalLamports - halfLamports }));
       }
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromPubkey;
+
+      const signed = await solanaProvider.signAndSendTransaction(transaction);
+      const txHash = signed.signature || signed;
+      await connection.confirmTransaction({ signature: txHash, blockhash, lastValidBlockHeight });
 
       const donateRes = await fetch('/api/donate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           confessionId: id,
-          amount: txHashOwner ? val : val / 2,
-          txHashChurch,
-          txHashOwner: txHashOwner || txHashChurch,
+          amount: val,
+          txHashChurch: txHash,
+          txHashOwner: txHashOwner || txHashChurch: txHash,
         }),
       });
 
@@ -349,7 +310,7 @@ export default function ConfessionPage() {
         {c.chainStatus === 'confirmed' && c.txHash && (
           <div className="flex items-center gap-3 mb-6 px-1">
             <a
-              href={`https://basescan.org/tx/${c.txHash}`}
+              href={`https://solscan.io/tx/${c.txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-full text-sm font-mono text-green-400 hover:bg-green-500/20 transition-colors"
@@ -416,7 +377,7 @@ export default function ConfessionPage() {
                   disabled={donating}
                   className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg font-mono text-sm text-yellow-400 hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
                 >
-                  {amt} ETH
+                  {amt} SOL
                 </button>
               ))}
             </div>
@@ -449,7 +410,7 @@ export default function ConfessionPage() {
                 <div>
                   <p className="text-green-400 font-bold text-sm">✅ Baptism Complete!</p>
                   <p className="text-gray-400 text-xs mt-1">
-                    {lastBaptismAmount.toFixed(4)} ETH sent — 50% to sinner, 50% to Church
+                    {lastBaptismAmount.toFixed(4)} SOL sent — 50% to sinner, 50% to Church
                   </p>
                 </div>
                 {baptismStreak && baptismStreak > 1 && (
@@ -515,7 +476,7 @@ export default function ConfessionPage() {
                       <span className="text-xs text-gray-500">{timeAgo(dare.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-green-400 text-sm font-mono font-bold">⟠ {dare.amount}</span>
+                      <span className="text-green-400 text-sm font-mono font-bold">◎ {dare.amount}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase ${
                         dare.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
                         dare.status === 'accepted' ? 'bg-green-500/20 text-green-400' :
@@ -576,7 +537,7 @@ export default function ConfessionPage() {
                 🕊 Baptism Offerings ({data.donationCount})
               </div>
               <div className="font-mono text-sm text-yellow-400">
-                {(data.totalDonated || 0).toFixed(4)} ETH total
+                {(data.totalDonated || 0).toFixed(4)} SOL total
               </div>
             </div>
             <div className="divide-y divide-gray-800/50">
@@ -591,9 +552,9 @@ export default function ConfessionPage() {
                     <span className="text-xs text-gray-500">{timeAgo(d.createdAt)}</span>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                    <span className="font-mono text-xs sm:text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} ETH</span>
+                    <span className="font-mono text-xs sm:text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} SOL</span>
                     <a
-                      href={`https://basescan.org/tx/${d.txHash}`}
+                      href={`https://solscan.io/tx/${d.txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-mono text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full hover:bg-green-500/20 transition-colors"

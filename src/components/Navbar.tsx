@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useWallet } from './WalletProvider';
-import ConnectButton from './ConnectButton';
+import { useWallet } from '@/components/WalletProvider';
+import ConnectButton from '@/components/ConnectButton';
 
 interface NavProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  daresComponent?: React.ReactNode;
 }
 
-export default function Navbar({ activeTab, onTabChange }: NavProps) {
+export default function Navbar({ activeTab, onTabChange, daresComponent }: NavProps) {
   const { isConnected } = useWallet();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -60,7 +61,7 @@ export default function Navbar({ activeTab, onTabChange }: NavProps) {
         </div>
 
         {/* Desktop tabs */}
-        <div className="hidden md:flex items-center gap-4 lg:gap-6">
+        <div className="hidden md:flex items-center gap-3 lg:gap-5">
           {tabs.map((tab) =>
             tab.href ? (
               <a
@@ -82,6 +83,7 @@ export default function Navbar({ activeTab, onTabChange }: NavProps) {
               </button>
             )
           )}
+          {isConnected && daresComponent}
           <ConnectButton />
         </div>
 

@@ -100,7 +100,7 @@ export default function MyDares({ onNavigateToConfess }: MyDaresProps) {
                         <span className="text-purple-400 text-sm font-medium">
                           From: {dare.fromUser.username || shortenAddr(dare.fromUser.walletAddress)}
                         </span>
-                        <span className="text-green-400 text-sm font-bold">⟠ {dare.amount} ETH</span>
+                        <span className="text-green-400 text-sm font-bold">◎ {dare.amount} SOL</span>
                       </div>
 
                       <p className="text-white text-sm mb-3">&quot;{dare.dareText}&quot;</p>

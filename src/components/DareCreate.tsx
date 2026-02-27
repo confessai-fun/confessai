@@ -5,7 +5,7 @@ interface DareCreateProps {
   confessionId: string;
   onDareCreated?: (dare: any) => void;
   txHash: string;    // from the baptism transaction
-  amount: number;    // ETH amount of baptism
+  amount: number;    // SOL amount of baptism
 }
 
 const DARE_SUGGESTIONS = [
@@ -77,7 +77,7 @@ export default function DareCreate({ confessionId, onDareCreated, txHash, amount
       </div>
 
       <p className="text-xs text-gray-400 mb-2">
-        Dare this sinner to confess something specific. They earn your baptism ETH if they accept!
+        Dare this sinner to confess something specific. They earn your baptism SOL if they accept!
       </p>
 
       <div className="relative mb-2">
@@ -107,7 +107,7 @@ export default function DareCreate({ confessionId, onDareCreated, txHash, amount
           disabled={!dareText.trim() || sending}
           className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm py-2 rounded-lg font-medium disabled:opacity-50 transition"
         >
-          {sending ? 'Sending...' : `⚡ Send Dare (${amount} ETH attached)`}
+          {sending ? 'Sending...' : `⚡ Send Dare (${amount} SOL attached)`}
         </button>
       </div>
     </div>

@@ -123,11 +123,11 @@ export default function UserProfilePage() {
             </div>
             <div className="text-center">
               <div className="font-mono text-xl sm:text-2xl text-yellow-400">{(u.totalDonated || 0).toFixed(4)}</div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">ETH Donated</div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">SOL Donated</div>
             </div>
             <div className="text-center">
               <div className="font-mono text-xl sm:text-2xl text-green-400">{(u.totalEarned || 0).toFixed(4)}</div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">ETH Earned</div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">SOL Earned</div>
             </div>
             <div className="text-center col-span-2 sm:col-span-1">
               <div className="font-mono text-xl sm:text-2xl text-gray-300">{u.donationCount}</div>
@@ -200,7 +200,7 @@ export default function UserProfilePage() {
                   <div className="flex gap-4 mt-3 text-xs text-gray-500">
                     <span>❤️ {c.likesCount}</span>
                     <span>💬 {c.commentsCount}</span>
-                    {c.totalDonated > 0 && <span>🕊 {c.totalDonated.toFixed(4)} ETH</span>}
+                    {c.totalDonated > 0 && <span>🕊 {c.totalDonated.toFixed(4)} SOL</span>}
                   </div>
                 </a>
               ))
@@ -220,7 +220,7 @@ export default function UserProfilePage() {
               data.baptismsGiven.map((d: any) => (
                 <a key={d.id} href={`/confession/${d.confession?.id}`} className="block bg-card border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-all">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-sm text-yellow-400 font-semibold">🕊 {d.amount.toFixed(4)} ETH</span>
+                    <span className="font-mono text-sm text-yellow-400 font-semibold">🕊 {d.amount.toFixed(4)} SOL</span>
                     <span className="text-xs text-gray-600">{timeAgo(d.createdAt)}</span>
                   </div>
                   <div className="flex items-center gap-2 mb-1">
@@ -246,14 +246,14 @@ export default function UserProfilePage() {
             ) : (
               <>
                 <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4 sm:p-6 text-center mb-2">
-                  <div className="font-mono text-2xl sm:text-3xl text-green-400 mb-1">{(u.totalEarned || 0).toFixed(4)} ETH</div>
+                  <div className="font-mono text-2xl sm:text-3xl text-green-400 mb-1">{(u.totalEarned || 0).toFixed(4)} SOL</div>
                   <div className="text-xs text-gray-500 uppercase tracking-wider">Total Earned from {u.earnedCount || 0} baptisms</div>
                 </div>
                 {data.donationsEarned.map((d: any) => (
                   <div key={d.id} className="bg-card border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-all">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-green-400 font-mono text-sm font-semibold">+{(d.amount / 2).toFixed(4)} ETH</span>
+                        <span className="text-green-400 font-mono text-sm font-semibold">+{(d.amount / 2).toFixed(4)} SOL</span>
                         <span className="text-xs text-gray-600">earned</span>
                       </div>
                       <span className="text-xs text-gray-600">{timeAgo(d.createdAt)}</span>

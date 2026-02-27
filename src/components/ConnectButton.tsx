@@ -1,48 +1,47 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useWallet } from './WalletProvider';
+import dynamic from 'next/dynamic';
+import { useWallet } from '@/components/WalletProvider';
 
-export default function ConnectButton({ className }: { className?: string }) {
-  const { isConnected, connect, disconnect, truncatedAddress, username, isLoading } = useWallet();
-  const [isMobile, setIsMobile] = useState(false);
+const WalletMultiButtonDynamic = dynamic(
+  async () => {
+    const { WalletMultiButton } = await import('@solana/wallet-adapter-react-ui');
+    return { default: WalletMultiButton };
+  },
+  { ssr: false, loading: () => <button className="px-4 py-2 bg-red-700 text-white text-sm rounded-lg opacity-50">Loading...</button> }
+);
 
-  useEffect(() => {
-    setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-  }, []);
-
-  const noProvider = typeof window !== 'undefined' && typeof window.ethereum === 'undefined';
-
-  if (isLoading) {
-    return (
-      <button className={`bg-gray-700 text-gray-400 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold ${className}`} disabled>
-        ...
-      </button>
-    );
-  }
+export function ConnectButton({ className }: { className?: string }) {
+  const { isConnected, truncatedAddress, username, disconnect } = useWallet();
 
   if (isConnected) {
     return (
       <button
         onClick={disconnect}
-        className={`border border-gray-600 text-gray-300 px-3 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium hover:border-gray-400 hover:text-white transition-all flex items-center gap-1.5 sm:gap-2 ${className}`}
+        className={`flex items-center gap-1.5 px-3 py-1.5 bg-red-900/40 border border-red-800/50 rounded-lg hover:bg-red-900/60 transition-colors group shrink-0 ${className || ''}`}
+        title="Click to disconnect"
       >
-        <span className="w-2 h-2 bg-green-500 rounded-full shrink-0" />
-        <span className="font-body truncate max-w-[100px] sm:max-w-[150px]">{username || truncatedAddress}</span>
+        <span className="text-amber-400 text-xs font-medium truncate max-w-[100px]">
+          {username || truncatedAddress}
+        </span>
+        <span className="text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">✕</span>
       </button>
     );
   }
 
   return (
-    <button
-      onClick={connect}
-      className={`bg-accent text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold hover:bg-white hover:text-black transition-all hover:-translate-y-0.5 flex items-center gap-1.5 ${className}`}
-    >
-      {isMobile && noProvider ? (
-        <>🦊 Open in MetaMask</>
-      ) : (
-        <>Connect<span className="hidden sm:inline"> Wallet</span></>
-      )}
-    </button>
+    <WalletMultiButtonDynamic
+      className={className}
+      style={{
+        backgroundColor: '#dc2626',
+        borderRadius: '0.5rem',
+        fontSize: '0.875rem',
+        height: '2.5rem',
+        padding: '0 1rem',
+        fontFamily: 'inherit',
+      }}
+    />
   );
 }
+
+export default ConnectButton;

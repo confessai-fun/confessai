@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import FeedCard from '@/components/FeedCard';
 import ChatPanel from '@/components/ChatPanel';
 import { useToast } from '@/components/Toast';
+import PoolClaim from '@/components/PoolClaim';
 import BaptismPool from '@/components/BaptismPool';
 import StreakBadge from '@/components/StreakBadge';
 import MyDares from '@/components/MyDares';
@@ -24,10 +25,10 @@ const SINS = [
 ];
 
 const STEPS = [
-  { num: '01', title: 'Connect Wallet', desc: 'Sign in with Ethereum. Anonymous. No KYC. Just sins.' },
+  { num: '01', title: 'Connect Wallet', desc: 'Sign in with Solana. Anonymous. No KYC. Just sins.' },
   { num: '02', title: 'Confess Your Sins', desc: 'Tell Father Degen your worst trades, biggest copes, and degen moments.' },
-  { num: '03', title: 'Get Judged On-Chain', desc: 'AI priest classifies your sin, assigns severity, and delivers penance. Stored forever on Base.' },
-  { num: '04', title: 'Baptize the Sinners', desc: 'Send ETH to baptize any confession. Top donors earn their place on the Baptism Leaderboard.' },
+  { num: '03', title: 'Get Judged On-Chain', desc: 'AI priest classifies your sin, assigns severity, and delivers penance. Stored forever on Solana.' },
+  { num: '04', title: 'Baptize the Sinners', desc: 'Send SOL to baptize any confession. Top donors earn their place on the Baptism Leaderboard.' },
 ];
 
 const SORT_OPTIONS = [
@@ -297,7 +298,7 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
 
   const shareCard = (d: any) => {
     const sinEmoji = { Greed: '💰', FOMO: '📉', Wrath: '🔥', Sloth: '💤', Pride: '👑', Lust: '💋', Cope: '🧠' }[d.confession?.sinCategory as string] || '⛪';
-    const text = `🔊 I baptized a sinner on @ConfessAI ⛪\n\n${sinEmoji} Sin: ${d.confession?.sinCategory} — ${d.confession?.sinLevel}\n💰 Offering: ${d.amount.toFixed(4)} ETH\n⛓ Tx: basescan.org/tx/${d.txHash}\n\nConfess & get baptized → confessai.fun\n\n$CONFESS`;
+    const text = `🔊 I baptized a sinner on @ConfessAI ⛪\n\n${sinEmoji} Sin: ${d.confession?.sinCategory} — ${d.confession?.sinLevel}\n💰 Offering: ${d.amount.toFixed(4)} SOL\n⛓ Tx: solscan.io/tx/${d.txHash}\n\nConfess & get baptized → confessai.fun\n\n$CONFESS`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -316,7 +317,7 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
               <div className="font-mono text-3xl text-yellow-400 mb-1">{totalDonated.toFixed(4)}</div>
-              <div className="text-xs text-gray-500 uppercase tracking-wider">Total ETH Offered</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider">Total SOL Offered</div>
             </div>
             <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 text-center">
               <div className="font-mono text-3xl text-yellow-400 mb-1">{donationCount}</div>
@@ -347,11 +348,11 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
                   <div className="bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border-b border-yellow-500/10 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-yellow-400">🔊</span>
-                      <span className="font-mono text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} ETH</span>
+                      <span className="font-mono text-sm text-yellow-400 font-semibold">{d.amount.toFixed(4)} SOL</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <a
-                        href={`https://basescan.org/tx/${d.txHash}`}
+                        href={`https://solscan.io/tx/${d.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-mono text-[11px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full hover:bg-green-500/20 transition-colors"
@@ -396,7 +397,7 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
                         ↗ Share Baptism Card on 𝕏
                       </button>
                       <a
-                        href={`https://basescan.org/tx/${d.txHash}`}
+                        href={`https://solscan.io/tx/${d.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 border border-gray-700 text-gray-400 px-4 py-2 rounded-full text-xs font-semibold hover:border-gray-500 hover:text-gray-300 transition-all"
@@ -481,8 +482,8 @@ function LeaderboardTab() {
         <>
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-4 sm:p-6 text-center">
-              <div className="font-mono text-2xl sm:text-3xl text-yellow-400 mb-1">{(data?.treasury?.totalETH || 0).toFixed(4)}</div>
-              <div className="text-xs text-gray-500 uppercase tracking-wider">Total ETH Donated</div>
+              <div className="font-mono text-2xl sm:text-3xl text-yellow-400 mb-1">{(data?.treasury?.totalSOL || 0).toFixed(4)}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider">Total SOL Donated</div>
             </div>
             <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-4 sm:p-6 text-center">
               <div className="font-mono text-2xl sm:text-3xl text-yellow-400 mb-1">{data?.treasury?.totalDonations || 0}</div>
@@ -524,7 +525,7 @@ function LeaderboardTab() {
                     renderUserRow(d, i, (
                       <div className="text-right shrink-0">
                         <div className="font-mono text-sm text-accent">{d.compositeScore} pts</div>
-                        <div className="text-[10px] text-gray-600">{d.totalDonated.toFixed(4)} / {(d.totalEarned || 0).toFixed(4)} ETH</div>
+                        <div className="text-[10px] text-gray-600">{d.totalDonated.toFixed(4)} / {(d.totalEarned || 0).toFixed(4)} SOL</div>
                       </div>
                     ))
                   )}
@@ -545,7 +546,7 @@ function LeaderboardTab() {
                   {data.topDonors.map((d: any, i: number) =>
                     renderUserRow(d, i, (
                       <div className="text-right shrink-0">
-                        <div className="font-mono text-sm text-yellow-400">{d.totalDonated.toFixed(4)} ETH</div>
+                        <div className="font-mono text-sm text-yellow-400">{d.totalDonated.toFixed(4)} SOL</div>
                       </div>
                     ))
                   )}
@@ -566,7 +567,7 @@ function LeaderboardTab() {
                   {data.topEarners.map((d: any, i: number) =>
                     renderUserRow(d, i, (
                       <div className="text-right shrink-0">
-                        <div className="font-mono text-sm text-green-400">{(d.totalEarned || 0).toFixed(4)} ETH</div>
+                        <div className="font-mono text-sm text-green-400">{(d.totalEarned || 0).toFixed(4)} SOL</div>
                         <div className="text-[10px] text-gray-600">{d.earnedCount || 0} baptisms received</div>
                       </div>
                     ))
@@ -594,7 +595,7 @@ function LeaderboardTab() {
                         &ldquo;{(d.confession?.confessionText || '').slice(0, 30)}...&rdquo;
                       </a>
                     </div>
-                    <div className="font-mono text-xs text-yellow-400 shrink-0">{d.amount.toFixed(4)} ETH</div>
+                    <div className="font-mono text-xs text-yellow-400 shrink-0">{d.amount.toFixed(4)} SOL</div>
                   </div>
                 ))}
               </div>
@@ -710,17 +711,16 @@ export default function Home() {
 
   return (
     <>
-      <Navbar activeTab={tab} onTabChange={setTab} />
-
-      {/* MyDares notification bell - fixed position */}
-      {isConnected && (
-        <div className="fixed top-3 right-24 md:right-40 z-50">
+      <Navbar
+        activeTab={tab}
+        onTabChange={setTab}
+        daresComponent={
           <MyDares onNavigateToConfess={(dareId, dareText) => {
             setConfessionText(`[DARE] ${dareText}`);
             setTab('confess');
           }} />
-        </div>
-      )}
+        }
+      />
 
       {/* ===== HOME ===== */}
       {tab === 'home' && (
@@ -728,19 +728,19 @@ export default function Home() {
           <section className="min-h-[85vh] md:min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-20 md:pt-32 pb-16 md:pb-20 relative">
             <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle,rgba(255,45,45,0.15),transparent_70%)] pointer-events-none opacity-40" />
             {/* <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
-              <span className="w-2 h-2 bg-accent rounded-full animate-blink" /> Live on Base · confessai.fun
+              <span className="w-2 h-2 bg-accent rounded-full animate-blink" /> Live on Solana · confessai.fun
             </div> */}
             <h1 className="font-display text-[clamp(48px,8vw,96px)] leading-none text-white mb-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
               CONFESS YOUR<br /><span className="text-accent">CRYPTO SINS</span>
             </h1>
             <p className="text-[clamp(16px,2vw,20px)] text-gray-400 max-w-xl mb-12 animate-fade-up" style={{ animationDelay: '0.2s' }}>
-              The on-chain church for degens. An AI priest judges your worst trades, assigns your penance, and lets the community baptize your sins with ETH. Every confession is permanent. No edits. No deletes. No mercy.
+              The on-chain church for degens. An AI priest judges your worst trades, assigns your penance, and lets the community baptize your sins with SOL. Every confession is permanent. No edits. No deletes. No mercy.
             </p>
             <div className="flex gap-3 sm:gap-4 flex-col sm:flex-row justify-center animate-fade-up w-full sm:w-auto px-4 sm:px-0" style={{ animationDelay: '0.3s' }}>
-              <button onClick={() => setTab('confess')} className="bg-accent text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
+              <button onClick={() => setTab('confess')} className="bg-accent text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-solana hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
                 ⛪ Enter the Church
               </button>
-              <button onClick={() => setTab('leaderboard')} className="border border-gray-600 text-gray-300 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base hover:border-gray-400 hover:text-white hover:-translate-y-0.5 transition-all">
+              <button onClick={() => setTab('leaderboard')} className="border border-gray-600 text-gray-300 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-solana hover:border-gray-400 hover:text-white hover:-translate-y-0.5 transition-all">
                 🕊 Baptism Leaderboard
               </button>
             </div>
@@ -787,7 +787,7 @@ export default function Home() {
                     <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${sin.gradient} border ${sin.border} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 overflow-hidden`}>
                       <img src={sin.icon} alt={sin.name} width={32} height={32} />
                     </div>
-                    <div className="font-display text-base text-white mb-2">{sin.name}</div>
+                    <div className="font-display text-solana text-white mb-2">{sin.name}</div>
                     <p className="text-xs text-gray-400 leading-relaxed">{sin.desc}</p>
                   </div>
                 ))}
@@ -815,16 +815,16 @@ export default function Home() {
             <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
               <div className="font-mono text-xs text-yellow-400 uppercase tracking-[3px] mb-4">Baptism Economy</div>
               <h2 className="font-display text-[clamp(28px,4vw,44px)] text-white mb-6">🕊 Baptize & Be Saved</h2>
-              <p className="text-gray-400 max-w-lg mx-auto mb-6">See a confession that hits too close to home? Baptize it. Send ETH directly to the Church of $CONFESS and your offering is recorded on-chain forever.</p>
+              <p className="text-gray-400 max-w-lg mx-auto mb-6">See a confession that hits too close to home? Baptize it. Send SOL directly to the Church of $CONFESS and your offering is recorded on-chain forever.</p>
               <p className="text-gray-500 max-w-lg mx-auto mb-10 text-sm">Top donors climb the Baptism Leaderboard. The bigger the offering, the faster the salvation. Father Degen is always watching.</p>
               <div className="flex gap-3 sm:gap-4 justify-center flex-col sm:flex-row px-4 sm:px-0">
-                <button onClick={() => setTab('wall')} className="inline-flex justify-center bg-accent text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
+                <button onClick={() => setTab('wall')} className="inline-flex justify-center bg-accent text-white px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-solana hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent/30 transition-all">
                   ⛪ Start Confessing
                 </button>
-                <button onClick={() => setTab('leaderboard')} className="inline-flex justify-center border border-yellow-500/30 text-yellow-400 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:bg-yellow-500/10 hover:-translate-y-0.5 transition-all">
+                <button onClick={() => setTab('leaderboard')} className="inline-flex justify-center border border-yellow-500/30 text-yellow-400 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-solana hover:bg-yellow-500/10 hover:-translate-y-0.5 transition-all">
                   🕊 View Leaderboard
                 </button>
-                <button onClick={() => setTab('pool')} className="inline-flex justify-center border border-purple-500/30 text-purple-400 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-base hover:bg-purple-500/10 hover:-translate-y-0.5 transition-all">
+                <button onClick={() => setTab('pool')} className="inline-flex justify-center border border-purple-500/30 text-purple-400 px-8 sm:px-10 py-3.5 sm:py-4 rounded-full font-bold text-sm sm:text-solana hover:bg-purple-500/10 hover:-translate-y-0.5 transition-all">
                   🏊 Weekly Pool
                 </button>
               </div>
@@ -863,7 +863,7 @@ export default function Home() {
               <button
                 onClick={submitConfession}
                 disabled={loading}
-                className="w-full mt-5 bg-accent text-white py-4 rounded-lg font-bold text-base relative transition-all hover:shadow-lg hover:shadow-accent/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                className="w-full mt-5 bg-accent text-white py-4 rounded-lg font-bold text-solana relative transition-all hover:shadow-lg hover:shadow-accent/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-3">
@@ -887,7 +887,7 @@ export default function Home() {
               <div className="flex items-center gap-3 mb-5">
                 <div className="w-11 h-11 bg-accent rounded-full flex items-center justify-center text-xl">⛪</div>
                 <div>
-                  <div className="font-display text-base text-white">Father Degen</div>
+                  <div className="font-display text-solana text-white">Father Degen</div>
                   <div className="text-xs text-gray-500">AI Priest · Church of $CONFESS</div>
                 </div>
               </div>
@@ -1007,11 +1007,11 @@ export default function Home() {
                       </div>
                       <div className="text-center">
                         <div className="font-mono text-xl sm:text-2xl text-yellow-400">{(profile?.totalDonated || 0).toFixed(4)}</div>
-                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">ETH Donated</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">SOL Donated</div>
                       </div>
                       <div className="text-center">
                         <div className="font-mono text-xl sm:text-2xl text-green-400">{(profile?.totalEarned || 0).toFixed(4)}</div>
-                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">ETH Earned</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-wider">SOL Earned</div>
                       </div>
                       <div className="text-center">
                         <div className="font-mono text-xl sm:text-2xl text-orange-400">{profile?.baptizeStreak || 0}</div>
@@ -1050,7 +1050,10 @@ export default function Home() {
                 )}
               </div>
 
-              <div className="flex flex-col gap-3">
+              {/* Pool Rewards - claimable payouts */}
+              <PoolClaim />
+
+              <div className="flex flex-col gap-3 mt-4">
                 <a
                   href={`/user/${profile?.id}`}
                   className="w-full bg-card border border-gray-800 rounded-xl p-5 flex items-center justify-between hover:border-gray-600 transition-colors group"
@@ -1085,7 +1088,7 @@ export default function Home() {
                     <span className="text-xl">🏊</span>
                     <div className="text-left">
                       <div className="text-white font-medium text-sm">Weekly Baptism Pool</div>
-                      <div className="text-gray-500 text-xs">Compete for weekly ETH rewards • View streaks</div>
+                      <div className="text-gray-500 text-xs">Compete for weekly SOL rewards • View streaks</div>
                     </div>
                   </div>
                   <span className="text-gray-500 group-hover:text-white transition-colors">→</span>
@@ -1109,7 +1112,7 @@ export default function Home() {
           <button onClick={() => setTab('pool')} className="text-sm text-purple-400 hover:text-purple-300 transition-colors">🏊 Weekly Pool</button>
           <a href="/onchain" className="text-sm text-green-500 hover:text-green-400 transition-colors">⛓ On-Chain Viewer</a>
         </div>
-        <p className="text-xs text-gray-600">© 2026 ConfessAI — All sins recorded on Base. No edits. No deletes. No salvation guaranteed. confessai.fun</p>
+        <p className="text-xs text-gray-600">© 2026 ConfessAI — All sins recorded on Solana. No edits. No deletes. No salvation guaranteed. confessai.fun</p>
       </footer>
     </>
   );

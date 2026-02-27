@@ -1,32 +1,26 @@
-import { getIronSession, IronSession } from 'iron-session';
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
 
-export interface SessionData {
-  walletAddress?: string;
-}
+const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+const SESSION_COOKIE = 'confessai_session';
 
-export const sessionOptions = {
-  password: process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long_for_dev',
-  cookieName: 'confessai_session',
-  cookieOptions: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 7,
-  },
-};
-
-// Get session using cookies() — Next.js 14 (synchronous cookies())
-export async function getSession(): Promise<IronSession<SessionData>> {
-  const cookieStore = cookies();
-  return getIronSession<SessionData>(cookieStore, sessionOptions);
-}
-
-// Quick helper to get wallet address
 export async function getWalletFromReq(): Promise<string | null> {
   try {
-    const session = await getSession();
-    return session.walletAddress || null;
+    const cookieStore = await cookies();
+    const session = cookieStore.get(SESSION_COOKIE);
+    if (!session) return null;
+
+    const { payload, signature } = JSON.parse(Buffer.from(session.value, 'base64').toString());
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+
+    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) return null;
+
+    const data = JSON.parse(payload);
+
+    // Session valid for 7 days
+    if (Date.now() - data.iat > 7 * 24 * 60 * 60 * 1000) return null;
+
+    return data.walletAddress; // Now a Solana base58 address
   } catch {
     return null;
   }

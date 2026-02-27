@@ -166,6 +166,8 @@ model PoolPayout {
   rank      Int
   amount    Float
   txHash    String?     @map("tx_hash")
+  claimed   Boolean   @default(false)
+  claimedAt DateTime?
   createdAt DateTime    @default(now()) @map("created_at")
 
   pool      BaptismPool @relation(fields: [poolId], references: [id], onDelete: Cascade)

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import '@solana/wallet-adapter-react-ui/styles.css';
 import { WalletProvider } from '@/components/WalletProvider';
 import { ToastProvider } from '@/components/Toast';
 import UsernameModal from '@/components/UsernameModal';
@@ -7,10 +8,10 @@ import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: 'ConfessAI — Confess Your Crypto Sins On-Chain',
-  description: 'The on-chain church for degens. AI priest judges your sins. Baptize sinners with ETH. Every confession permanent on Base.',
+  description: 'The on-chain church for degens. AI priest judges your sins. Baptize sinners with SOL. Every confession permanent on Solana.',
   openGraph: {
     title: 'ConfessAI — Confess Your Crypto Sins On-Chain',
-    description: 'AI priest judges your crypto sins on-chain. Baptize sinners with ETH on Base.',
+    description: 'AI priest judges your crypto sins on-chain. Baptize sinners with SOL on Solana.',
   },
   twitter: { card: 'summary_large_image' },
 };

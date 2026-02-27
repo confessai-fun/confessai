@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/pool/distribute",
+      "schedule": "0 0 * * 1"
+    }
+  ]
+}

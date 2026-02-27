@@ -1,142 +1,136 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes, createHmac } from 'crypto';
-import { ethers } from 'ethers';
 import { cookies } from 'next/headers';
-import { getIronSession } from 'iron-session';
+import crypto from 'crypto';
+import nacl from 'tweetnacl';
+import bs58 from 'bs58';
+import { prisma } from '@/lib/prisma';
 
-interface SessionData {
-  walletAddress?: string;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+const SESSION_COOKIE = 'confessai_session';
+
+// Helper: Create HMAC for nonce integrity
+function createMac(nonce: string): string {
+  return crypto.createHmac('sha256', SESSION_SECRET).update(nonce).digest('hex');
 }
 
-const sessionOptions = {
-  password: process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long_for_dev',
-  cookieName: 'confessai_session',
-  cookieOptions: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 7,
-  },
-};
-
-const NONCE_SECRET = process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long_for_dev';
-
-// Sign a nonce so we can verify it later without storing in session
-function signNonce(nonce: string): string {
-  return createHmac('sha256', NONCE_SECRET).update(nonce).digest('hex');
+// Helper: Verify HMAC
+function verifyMac(nonce: string, mac: string): boolean {
+  const expected = createMac(nonce);
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(mac));
 }
 
-function verifyNonce(nonce: string, mac: string): boolean {
-  const expected = createHmac('sha256', NONCE_SECRET).update(nonce).digest('hex');
-  return expected === mac;
+// Helper: Create session token
+function createSession(walletAddress: string): string {
+  const payload = JSON.stringify({ walletAddress, iat: Date.now() });
+  const signature = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+  return Buffer.from(JSON.stringify({ payload, signature })).toString('base64');
 }
 
-// GET /api/auth — get nonce or check session
-export async function GET(req: NextRequest) {
+// Helper: Verify session token
+function verifySession(token: string): { walletAddress: string } | null {
   try {
-    const { searchParams } = new URL(req.url);
-    const action = searchParams.get('action');
-
-    if (action === 'nonce') {
-      // Generate nonce + HMAC signature
-      const nonce = randomBytes(16).toString('hex');
-      const mac = signNonce(nonce);
-
-      // Return nonce and its MAC — client sends both back on POST
-      // Also set nonce in a simple cookie as backup
-      const response = NextResponse.json({ nonce, mac });
-      response.cookies.set('pump_nonce', `${nonce}:${mac}`, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 300, // 5 min expiry
-        path: '/',
-      });
-      return response;
-    }
-
-    // Check existing session
-    const cookieStore = cookies();
-    const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
-
-    return NextResponse.json({
-      authenticated: !!session.walletAddress,
-      walletAddress: session.walletAddress || null,
-    });
-  } catch (err) {
-    console.error('Auth GET error:', err);
-    return NextResponse.json({ authenticated: false, walletAddress: null });
+    const { payload, signature } = JSON.parse(Buffer.from(token, 'base64').toString());
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) return null;
+    const data = JSON.parse(payload);
+    // Session valid for 7 days
+    if (Date.now() - data.iat > 7 * 24 * 60 * 60 * 1000) return null;
+    return { walletAddress: data.walletAddress };
+  } catch {
+    return null;
   }
 }
 
-// POST /api/auth — verify signature
+// GET: Check session or get nonce
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const action = searchParams.get('action');
+
+  // Generate nonce for signing
+  if (action === 'nonce') {
+    const nonce = crypto.randomBytes(32).toString('hex');
+    const mac = createMac(nonce);
+    return NextResponse.json({ nonce, mac });
+  }
+
+  // Check existing session
+  const cookieStore = await cookies();
+  const session = cookieStore.get(SESSION_COOKIE);
+  if (!session) {
+    return NextResponse.json({ authenticated: false });
+  }
+
+  const data = verifySession(session.value);
+  if (!data) {
+    return NextResponse.json({ authenticated: false });
+  }
+
+  return NextResponse.json({ authenticated: true, walletAddress: data.walletAddress });
+}
+
+// POST: Verify Solana signature and create session
 export async function POST(req: NextRequest) {
   try {
     const { address, signature, nonce, mac } = await req.json();
 
-    // Verify nonce authenticity via HMAC (no session needed!)
-    // Try client-provided MAC first, fall back to cookie
-    let nonceValid = false;
-
-    if (mac && nonce) {
-      nonceValid = verifyNonce(nonce, mac);
+    // Validate inputs
+    if (!address || !signature || !nonce || !mac) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (!nonceValid) {
-      // Try cookie-based nonce as fallback
-      const nonceCookie = req.cookies.get('pump_nonce')?.value;
-      if (nonceCookie) {
-        const [cookieNonce, cookieMac] = nonceCookie.split(':');
-        if (cookieNonce === nonce && verifyNonce(cookieNonce, cookieMac)) {
-          nonceValid = true;
-        }
-      }
+    // Verify nonce integrity
+    if (!verifyMac(nonce, mac)) {
+      return NextResponse.json({ error: 'Invalid nonce' }, { status: 400 });
     }
 
-    if (!nonceValid) {
-      console.error('[Auth] Nonce verification failed');
-      return NextResponse.json({ error: 'Invalid or expired nonce. Please try again.' }, { status: 401 });
-    }
-
-    // Build the same message that was signed on client
+    // Verify Solana signature
     const message = `Sign in to ConfessAI\n\nNonce: ${nonce}`;
+    const encodedMessage = new TextEncoder().encode(message);
 
-    // Recover signer address from signature
-    const recovered = ethers.verifyMessage(message, signature);
+    let publicKeyBytes: Uint8Array;
+    let signatureBytes: Uint8Array;
 
-    if (recovered.toLowerCase() !== address.toLowerCase()) {
-      console.error('[Auth] Address mismatch — recovered:', recovered, 'claimed:', address);
-      return NextResponse.json({ error: 'Signature mismatch' }, { status: 401 });
+    try {
+      publicKeyBytes = bs58.decode(address);
+      signatureBytes = bs58.decode(signature);
+    } catch {
+      return NextResponse.json({ error: 'Invalid address or signature format' }, { status: 400 });
     }
 
-    // Set session
-    const cookieStore = cookies();
-    const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
-    session.walletAddress = address.toLowerCase();
-    await session.save();
+    const isValid = nacl.sign.detached.verify(encodedMessage, signatureBytes, publicKeyBytes);
 
-    // Clear nonce cookie
-    const response = NextResponse.json({
-      authenticated: true,
-      walletAddress: session.walletAddress,
+    if (!isValid) {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    }
+
+    // Upsert user in database
+    await prisma.user.upsert({
+      where: { walletAddress: address },
+      update: { lastLogin: new Date() },
+      create: { walletAddress: address },
     });
-    response.cookies.delete('pump_nonce');
-    return response;
+
+    // Create session
+    const sessionToken = createSession(address);
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE, sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    });
+
+    return NextResponse.json({ authenticated: true, walletAddress: address });
   } catch (err) {
-    console.error('Auth POST error:', err);
-    return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
+    console.error('Auth error:', err);
+    return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
   }
 }
 
-// DELETE /api/auth — logout
-export async function DELETE(req: NextRequest) {
-  try {
-    const cookieStore = cookies();
-    const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
-    session.destroy();
-    return NextResponse.json({ authenticated: false });
-  } catch (err) {
-    console.error('Auth DELETE error:', err);
-    return NextResponse.json({ authenticated: false });
-  }
+// DELETE: Logout
+export async function DELETE() {
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE);
+  return NextResponse.json({ success: true });
 }

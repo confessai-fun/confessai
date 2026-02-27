@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
       topDonors,
       topEarners,
       treasury: {
-        totalETH: treasury._sum.amount || 0,
+        totalSOL: treasury._sum.amount || 0,
         totalDonations: treasury._count.id || 0,
       },
       recentDonations,
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
     console.error('Leaderboard error:', err);
     return NextResponse.json({
       topUsers: [], topDonors: [], topEarners: [],
-      treasury: { totalETH: 0, totalDonations: 0 }, recentDonations: [],
+      treasury: { totalSOL: 0, totalDonations: 0 }, recentDonations: [],
     });
   }
 }

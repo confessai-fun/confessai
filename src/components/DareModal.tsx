@@ -102,7 +102,7 @@ export default function DareModal({ confessionId, isOpen, onClose, currentUserId
                 <p className="text-white text-sm mb-2">&quot;{dare.dareText}&quot;</p>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-green-400 text-sm font-bold">⟠ {dare.amount} ETH</span>
+                  <span className="text-green-400 text-sm font-bold">◎ {dare.amount} SOL</span>
 
                   {dare.status === 'pending' && (
                     <span className="text-gray-500 text-xs">
