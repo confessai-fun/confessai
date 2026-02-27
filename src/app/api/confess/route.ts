@@ -45,36 +45,36 @@ export async function POST(req: NextRequest) {
 
     // Post on-chain in background (don't block response)
     // User gets instant response, tx confirms in background
-    postConfessionOnChain({
-      sinnerAddress: wallet,
-      confessionText: confession.trim(),
-      sinCategory: ai.sinCategory,
-      sinLevel: ai.sinLevel,
-      aiResponse: ai.response,
-    }).then(async (result) => {
-      if (result) {
-        await prisma.confession.update({
-          where: { id: confessionRow.id },
-          data: {
-            txHash: result.txHash,
-            onChainId: result.onChainId,
-            chainStatus: 'confirmed',
-          },
-        });
-        console.log(`[Chain] Confession ${confessionRow.id} confirmed: ${result.txHash}`);
-      } else {
-        await prisma.confession.update({
-          where: { id: confessionRow.id },
-          data: { chainStatus: 'failed' },
-        });
-      }
-    }).catch(async (err) => {
-      console.error('[Chain] Background tx error:', err);
-      await prisma.confession.update({
-        where: { id: confessionRow.id },
-        data: { chainStatus: 'failed' },
-      });
-    });
+    // postConfessionOnChain({
+    //   sinnerAddress: wallet,
+    //   confessionText: confession.trim(),
+    //   sinCategory: ai.sinCategory,
+    //   sinLevel: ai.sinLevel,
+    //   aiResponse: ai.response,
+    // }).then(async (result) => {
+    //   if (result) {
+    //     await prisma.confession.update({
+    //       where: { id: confessionRow.id },
+    //       data: {
+    //         txHash: result.txHash,
+    //         onChainId: result.onChainId,
+    //         chainStatus: 'confirmed',
+    //       },
+    //     });
+    //     console.log(`[Chain] Confession ${confessionRow.id} confirmed: ${result.txHash}`);
+    //   } else {
+    //     await prisma.confession.update({
+    //       where: { id: confessionRow.id },
+    //       data: { chainStatus: 'failed' },
+    //     });
+    //   }
+    // }).catch(async (err) => {
+    //   console.error('[Chain] Background tx error:', err);
+    //   await prisma.confession.update({
+    //     where: { id: confessionRow.id },
+    //     data: { chainStatus: 'failed' },
+    //   });
+    // });
 
     return NextResponse.json({ confession: confessionRow, ai });
   } catch (err) {
