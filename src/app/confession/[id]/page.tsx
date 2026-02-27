@@ -184,7 +184,7 @@ export default function ConfessionPage() {
           confessionId: id,
           amount: val,
           txHashChurch: txHash,
-          txHashOwner: txHashOwner || txHashChurch: txHash,
+          txHashOwner: txHash,
         }),
       });
 
