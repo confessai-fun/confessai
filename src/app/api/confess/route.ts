@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { judgeConfession, SIN_SCORE_MAP } from '@/lib/gemini';
 import { getWalletFromReq } from '@/lib/session';
-import { postConfessionOnChain } from '@/lib/onchain';
 
 export async function POST(req: NextRequest) {
   const wallet = await getWalletFromReq();
