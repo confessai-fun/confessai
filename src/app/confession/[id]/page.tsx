@@ -196,8 +196,8 @@ export default function ConfessionPage() {
       if (donateData.streak) setBaptismStreak(donateData.streak);
 
       if (!isSelfBaptize) {
-        setLastBaptismTxHash(txHashChurch);
-        setLastBaptismAmount(txHashOwner ? val : val / 2);
+        setLastBaptismTxHash(txHash);
+        setLastBaptismAmount(val);
         setShowDare(true);
       } else {
         reload();
