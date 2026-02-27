@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     // Upsert user in database
     await prisma.user.upsert({
       where: { walletAddress: address },
-      update: { lastLogin: new Date() },
+      update: {  },
       create: { walletAddress: address },
     });
 
