@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes, createHmac } from 'crypto';
-import { ethers } from 'ethers';
+// import { ethers } from 'ethers';
 import { cookies } from 'next/headers';
 import { getIronSession } from 'iron-session';
 
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     const message = `Sign in to ConfessAI\n\nNonce: ${nonce}`;
 
     // Recover signer address from signature
-    const recovered = ethers.verifyMessage(message, signature);
+    // const recovered = ethers.verifyMessage(message, signature);
 
     if (recovered.toLowerCase() !== address.toLowerCase()) {
       console.error('[Auth] Address mismatch — recovered:', recovered, 'claimed:', address);

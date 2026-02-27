@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+// import { ethers } from 'ethers';
 import { CONFESSION_ABI, CONTRACT_ADDRESS, BASE_RPC } from './contract';
 
 // Server-side only — sends confession tx from app wallet
@@ -17,9 +17,9 @@ export async function postConfessionOnChain(params: {
   }
 
   try {
-    const provider = new ethers.JsonRpcProvider(BASE_RPC);
-    const wallet = new ethers.Wallet(privateKey, provider);
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, CONFESSION_ABI, wallet);
+    // const provider = new ethers.JsonRpcProvider(BASE_RPC);
+    // const wallet = new ethers.Wallet(privateKey, provider);
+    // const contract = new ethers.Contract(CONTRACT_ADDRESS, CONFESSION_ABI, wallet);
 
     // Truncate text if too long to save gas (keep under 500 chars each)
     const text = params.confessionText.slice(0, 500);
