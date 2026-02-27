@@ -161,7 +161,6 @@ export async function GET() {
       where: { weekStart: lastWeekStart },
       include: {
         payouts: {
-          include: { user: { select: { username: true, walletAddress: true } } },
           orderBy: { rank: 'asc' },
         },
       },
@@ -178,8 +177,7 @@ export async function GET() {
         distributed: lastPool.distributed,
         winners: lastPool.payouts.map(p => ({
           rank: p.rank,
-          username: p.user.username,
-          wallet: p.user.walletAddress,
+          userId: p.userId,
           amount: p.amount,
           claimed: p.claimed,
           claimedAt: p.claimedAt,
