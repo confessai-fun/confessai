@@ -56,10 +56,6 @@ function SinIcon({ name, size = 16 }: { name: string; size?: number }) {
 
 function trunc(addr: string) { return addr.slice(0, 6) + '...' + addr.slice(-4); }
 
-// ============================================================
-// REPLACE the existing FeedSection function in page.tsx with this
-// ============================================================
-
 function FeedSection({
   title,
   subtitle,
@@ -97,10 +93,8 @@ function FeedSection({
       const data = await res.json();
 
       if (cursor) {
-        // Append to existing
         setConfessions((prev) => [...prev, ...(data.confessions || [])]);
       } else {
-        // Fresh load
         setConfessions(data.confessions || []);
         setCategories(data.categories || []);
         setTotalCount(data.totalCount || 0);
@@ -112,14 +106,12 @@ function FeedSection({
     setLoadingMore(false);
   }, [sort, category, isMine]);
 
-  // Reset and load on sort/category change
   useEffect(() => {
     setConfessions([]);
     setNextCursor(null);
     loadFeed();
   }, [loadFeed]);
 
-  // Intersection Observer for infinite scroll
   useEffect(() => {
     if (!loaderRef.current || !nextCursor) return;
     const observer = new IntersectionObserver(
@@ -217,7 +209,6 @@ function FeedSection({
             <FeedCard key={c.id} confession={c} onRefresh={() => loadFeed()} />
           ))}
 
-          {/* Infinite scroll trigger */}
           {nextCursor && (
             <div ref={loaderRef} className="flex justify-center py-6">
               {loadingMore ? (
@@ -240,10 +231,6 @@ function FeedSection({
     </section>
   );
 }
-
-// ============================================================
-// REPLACE the existing MyBaptismsTab function in page.tsx with this
-// ============================================================
 
 function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void }) {
   const [donations, setDonations] = useState<any[]>([]);
@@ -281,7 +268,6 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
 
   useEffect(() => { loadBaptisms(); }, [loadBaptisms]);
 
-  // Intersection Observer for infinite scroll
   useEffect(() => {
     if (!loaderRef.current || !nextCursor) return;
     const observer = new IntersectionObserver(
@@ -325,7 +311,6 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
             </div>
           </div>
 
-          {/* Streak Widget */}
           <div className="mb-8">
             <StreakBadge />
           </div>
@@ -402,14 +387,13 @@ function MyBaptismsTab({ onNavigateConfess }: { onNavigateConfess: () => void })
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 border border-gray-700 text-gray-400 px-4 py-2 rounded-full text-xs font-semibold hover:border-gray-500 hover:text-gray-300 transition-all"
                       >
-                        ⛓ View on BaseScan
+                        ⛓ View on Solscan
                       </a>
                     </div>
                   </div>
                 </div>
               ))}
 
-              {/* Infinite scroll trigger */}
               {nextCursor && (
                 <div ref={loaderRef} className="flex justify-center py-6">
                   {loadingMore ? (
@@ -685,6 +669,57 @@ export default function Home() {
     }
   }, [isConnected, tab]);
 
+  const postOnChain = async (confessionId: string, text: string, sinCategory: string, sinScore: number) => {
+    try {
+      const { Connection, PublicKey, Transaction, TransactionInstruction } = await import('@solana/web3.js');
+      const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
+      const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+      const connection = new Connection(rpcUrl, 'confirmed');
+      const solanaProvider = (window as any).solana || (window as any).phantom?.solana;
+      if (!solanaProvider?.publicKey) return;
+
+      const memoData = JSON.stringify({
+        app: 'ConfessAI',
+        sin: text.slice(0, 280),
+        cat: sinCategory,
+        score: sinScore,
+        ts: Date.now(),
+      });
+
+      const tx = new Transaction().add(new TransactionInstruction({
+        keys: [{ pubkey: solanaProvider.publicKey, isSigner: true, isWritable: false }],
+        programId: MEMO_PROGRAM_ID,
+        data: Buffer.from(memoData, 'utf-8'),
+      }));
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = solanaProvider.publicKey;
+
+      const signed = await solanaProvider.signAndSendTransaction(tx);
+      const txHash = signed.signature || signed;
+      await connection.confirmTransaction({ signature: txHash, blockhash, lastValidBlockHeight }, 'confirmed');
+
+      // Update DB with txHash
+      await fetch(`/api/confession/${confessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txHash }),
+      }).catch(() => {});
+
+      setSalvation((s: any) => s ? { ...s, txHash } : s);
+      toast('Sin recorded on Solana forever ⛓');
+    } catch (err: any) {
+      if (err?.message?.includes('User rejected')) {
+        toast('You declined. Your sin remains off-chain... for now.');
+        setSalvation((s: any) => s ? { ...s, chainSkipped: true } : s);
+      } else {
+        console.error('On-chain error:', err);
+        setSalvation((s: any) => s ? { ...s, chainError: err?.message || 'Failed' } : s);
+      }
+    }
+  };
+
   const submitConfession = async () => {
     if (!isConnected) { toast('Connect wallet first'); return; }
     const text = confessionText.trim();
@@ -697,8 +732,13 @@ export default function Home() {
         body: JSON.stringify({ confession: text }),
       });
       const data = await res.json();
-      setSalvation(data.ai);
+      setSalvation({ ...data.ai, confessionId: data.confession?.id });
       setTimeout(() => salvationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+
+      // Auto-trigger on-chain posting (user pays gas via Phantom)
+      if (data.confession?.id) {
+        postOnChain(data.confession.id, text, data.ai.sinCategory, data.ai.sinScore || 0);
+      }
     } catch { toast('Father Degen is meditating. Try again.'); }
     setLoading(false);
   };
@@ -727,9 +767,6 @@ export default function Home() {
         <>
           <section className="min-h-[85vh] md:min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-20 md:pt-32 pb-16 md:pb-20 relative">
             <div className="absolute -top-48 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-[radial-gradient(circle,rgba(255,45,45,0.15),transparent_70%)] pointer-events-none opacity-40" />
-            {/* <div className="inline-flex items-center gap-2 px-5 py-2 bg-elevated border border-gray-600 rounded-full text-sm text-gray-300 font-medium mb-10 animate-fade-up">
-              <span className="w-2 h-2 bg-accent rounded-full animate-blink" /> Live on Solana · confessai.fun
-            </div> */}
             <h1 className="font-display text-[clamp(48px,8vw,96px)] leading-none text-white mb-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
               CONFESS YOUR<br /><span className="text-accent">CRYPTO SINS</span>
             </h1>
@@ -840,7 +877,6 @@ export default function Home() {
           <h2 className="font-display text-2xl text-white mb-2">⛪ The Church</h2>
           <p className="text-gray-500 text-sm mb-8">Father Degen is listening. Unburden your soul, sinner.</p>
 
-          {/* Show if confessing a dare */}
           {confessionText.startsWith('[DARE]') && (
             <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-4">
               <div className="flex items-center gap-2 mb-1">
@@ -904,6 +940,24 @@ export default function Home() {
                 <button onClick={shareToTwitter} className="border border-accent text-accent px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-accent hover:text-white transition-all">Share on 𝕏</button>
                 <button onClick={() => { setSalvation(null); setConfessionText(''); }} className="border border-gray-600 text-gray-300 px-6 py-2.5 rounded-full text-sm font-semibold hover:border-white hover:text-white transition-all">Confess Again</button>
               </div>
+              {salvation.txHash ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-green-400 text-xs font-mono">⛓ Recorded on Solana</span>
+                  <a href={`https://solscan.io/tx/${salvation.txHash}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-green-500 hover:text-green-400 font-mono underline">View on Solscan →</a>
+                </div>
+              ) : salvation.chainSkipped ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-yellow-500 text-xs font-mono">⚠ Off-chain only</span>
+                  <button onClick={() => { setSalvation((s: any) => ({ ...s, chainSkipped: false })); postOnChain(salvation.confessionId, confessionText.trim(), salvation.sinCategory, salvation.sinScore || 0); }} className="text-[11px] text-accent hover:text-white font-mono underline">Try again →</button>
+                </div>
+              ) : salvation.chainError ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-red-400 text-xs font-mono">⚠ On-chain failed</span>
+                  <button onClick={() => { setSalvation((s: any) => ({ ...s, chainError: '' })); postOnChain(salvation.confessionId, confessionText.trim(), salvation.sinCategory, salvation.sinScore || 0); }} className="text-[11px] text-accent hover:text-white font-mono underline">Retry →</button>
+                </div>
+              ) : (
+                <div className="mt-3 text-[11px] text-green-500 font-mono animate-pulse">⛓ Waiting for wallet signature...</div>
+              )}
             </div>
           )}
         </section>
@@ -1050,7 +1104,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Pool Rewards - claimable payouts */}
               <PoolClaim />
 
               <div className="flex flex-col gap-3 mt-4">

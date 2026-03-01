@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     // AI judgment
     const ai = await judgeConfession(confession.trim());
 
-    // Save to DB immediately (chainStatus: 'pending')
+    // Save to DB (chainStatus: 'pending' until frontend posts on-chain)
     const confessionRow = await prisma.confession.create({
       data: {
         userId: user.id,
@@ -42,39 +42,6 @@ export async function POST(req: NextRequest) {
       where: { id: user.id },
       data: { sinScore: { increment: scoreAdd }, totalConfessions: { increment: 1 } },
     });
-
-    // Post on-chain in background (don't block response)
-    // User gets instant response, tx confirms in background
-    // postConfessionOnChain({
-    //   sinnerAddress: wallet,
-    //   confessionText: confession.trim(),
-    //   sinCategory: ai.sinCategory,
-    //   sinLevel: ai.sinLevel,
-    //   aiResponse: ai.response,
-    // }).then(async (result) => {
-    //   if (result) {
-    //     await prisma.confession.update({
-    //       where: { id: confessionRow.id },
-    //       data: {
-    //         txHash: result.txHash,
-    //         onChainId: result.onChainId,
-    //         chainStatus: 'confirmed',
-    //       },
-    //     });
-    //     console.log(`[Chain] Confession ${confessionRow.id} confirmed: ${result.txHash}`);
-    //   } else {
-    //     await prisma.confession.update({
-    //       where: { id: confessionRow.id },
-    //       data: { chainStatus: 'failed' },
-    //     });
-    //   }
-    // }).catch(async (err) => {
-    //   console.error('[Chain] Background tx error:', err);
-    //   await prisma.confession.update({
-    //     where: { id: confessionRow.id },
-    //     data: { chainStatus: 'failed' },
-    //   });
-    // });
 
     return NextResponse.json({ confession: confessionRow, ai });
   } catch (err) {
